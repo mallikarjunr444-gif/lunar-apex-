@@ -1,4 +1,4 @@
-# Lunar Apex — Lunar Landing Site Navigator
+# LunaSight — Lunar Landing Site Navigator
 
 Compare lunar landing **sites and dates** in seconds. For any point on the Moon it shows where the **Sun** and **Earth** sit relative to the horizon, how long until sunset / Earthset, and when a lander has **power** (Sun up) and a **direct-to-Earth link** (Earth up) — side by side.
 
@@ -7,8 +7,8 @@ Built for the NASA "Lunar Landing Site Navigator" challenge. Pure static web app
 ## Run it
 
 ```bash
-npm start            # serves http://localhost:8080  (or just open index.html)
-npm test             # 12 engine tests
+npm start            # serves http://localhost:3000
+npm test             # engine and backend geometry tests
 ```
 
 ## What it does
@@ -63,3 +63,35 @@ Eclipses of the site by Earth/Sun, antenna pointing limits, thermal limits, site
 [Quickmap](https://quickmap.lroc.asu.edu/) · [Moon Trek](https://trek.nasa.gov/moon/) · [JPL Horizons](https://ssd.jpl.nasa.gov/horizons/) · [CSA Moon Exploration](https://www.asc-csa.gc.ca/eng/astronomy/moon-exploration/). NASA does not endorse any non-U.S. Government entity.
 
 MIT licensed.
+
+## Project layout
+
+- `frontend/` contains the static application, styles, charts, curated sites, and vendored browser library.
+- `backend/` contains the optional Node server and Horizons/analytic API modules.
+- `test/` contains the browser-engine and backend geometry tests.
+- `tools/` contains diagnostic scripts such as the Horizons comparison utility.
+
+## Backend evaluation API
+
+Run `npm start` to expose the static frontend and a JSON API on port `3000`.
+
+- `GET /api/sites` — curated sites with coordinates, mission grouping, and notes.
+- `GET /api/resources` — Quickmap, Moon Trek, JPL Horizons, and CSA reference links.
+- `GET /api/evidence` — calculation methods, outputs, limitations, and source provenance for review-ready results.
+- `GET /api/timeline?site=shackleton&start=2027-03-01T00:00:00Z&hours=720` — sampled Sun/Earth positions and summary metrics.
+- `GET /api/compare?sites=shackleton,malapert&missionDays=7` — compare up to five sites.
+- `GET /api/evaluate?sites=shackleton,malapert&source=horizons` — ranked mission assessment with power, communications, joint-window, and score results.
+
+Common parameters include `source=analytic|horizons`, `step` in minutes, `horizon` terrain-mask degrees, `minSun`, `minEarth`, and `missionDays`. Horizons requests automatically fall back to the analytic model with the fallback reason included in `source`.
+
+## Reference projects and attribution
+
+LunaSight is an independent implementation. It does not vendor or combine the reference repositories, but its workflow and research direction were informed by:
+
+- [SIGHTLINE](https://github.com/WarRinOP/sightline) — Apache-2.0; NASA terrain horizons, evidence-driven validation, and mission barcode concepts.
+- [CLPS Lunar Mission Browser](https://github.com/localizedprojects/CLPS-MOON-BROWSER) — MIT; mission/site comparison and planning workflow ideas.
+- [Lunar Lighting Planner](https://github.com/astoreyai/lunar-lighting-planner) — MIT; illumination windows and horizon-analysis concepts.
+- [LuminaLuna](https://github.com/Planet-Coders/lunar-landing-site-navigator) — 3D lunar navigation and archived NASA Horizons validation patterns.
+- [LightPath](https://github.com/AnmolGarg8/LightPath) — MIT; SPICE geometry and rover-planning reference workflows.
+
+Scientific data sources remain the NASA/JPL resources listed above. External project code and assets are not copied into this repository.

@@ -1,5 +1,5 @@
 /*
- * Lunar Apex — ephemeris + visibility engine
+ * LunaSight — ephemeris + visibility engine
  *
  * Computes where the Sun and the Earth appear in the sky of any point on the Moon.
  *

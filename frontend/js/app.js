@@ -1,4 +1,4 @@
-/* Lunar Apex — application */
+/* LunaSight — lunar landing site evaluation application */
 (function () {
   'use strict';
   const LE = window.LunarEngine, CH = window.LunarCharts;
@@ -13,8 +13,8 @@
   const state = {
     scenarios: [], windowDays: 30, missionDays: 7,
     opts: { sunLimb: true, minSunElev: 0, minEarthElev: 0 },
-    view: 'panorama', yMode: 'zoom', offsetMs: 0, playing: false,
-    finderId: null, finderDays: 365
+    view: 'panorama', yMode: 'zoom', offsetMs: 0, playing: false, dataSource: 'analytic',
+    finderId: null, finderDays: 365, theme: 'dark'
   };
 
   // ------------------------------------------------------------ formatting
@@ -35,6 +35,18 @@
   const deg = (v) => (v == null ? '—' : v.toFixed(1) + '°');
   const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const normLon = (x) => { x = ((x + 180) % 360 + 360) % 360 - 180; return x === -180 ? 180 : x; };
+  const status = (message) => {
+    const el = $('app-status'); if (!el) return;
+    el.textContent = message;
+    clearTimeout(status.timer);
+    if (message) status.timer = setTimeout(() => { el.textContent = ''; }, 2600);
+  };
+  function setTheme(theme) {
+    state.theme = theme === 'light' ? 'light' : 'dark';
+    document.documentElement.dataset.theme = state.theme;
+    localStorage.setItem('lunasight-theme', state.theme);
+    $('btn-theme').textContent = state.theme === 'light' ? 'Dark theme' : 'Light theme';
+  }
 
   // -------------------------------------------------------------- scenarios
   function pickColor() { const used = state.scenarios.map((s) => s.color); return COLORS.find((c) => used.indexOf(c) < 0) || COLORS[0]; }
@@ -53,8 +65,17 @@
 
   // ------------------------------------------------------- derived (cached)
   const cache = new Map();
+  const liveResults = new Map();
+  let liveRequestKey = '';
+  let liveLoading = false;
+  const liveKey = () => JSON.stringify({
+    source: state.dataSource, windowDays: state.windowDays, missionDays: state.missionDays, opts: state.opts,
+    scenarios: state.scenarios.map((s) => [s.id, s.siteId, s.lat, s.lon, s.tMs, s.maskDeg, s.profileId])
+  });
   function derived(sc) {
     const k = `${siteKey(sc)}|${sc.tMs}|${state.windowDays}`;
+    const live = liveResults.get(sc.id);
+    if (state.dataSource === 'horizons' && live && live.key === liveKey()) return live.value;
     let d = cache.get(k);
     if (d) return d;
     if (cache.size > 60) cache.clear();
@@ -69,6 +90,54 @@
     d = { site, ser, sum, mission: { sunH, earthH, bothH: Math.min(sunH, earthH) } };
     cache.set(k, d);
     return d;
+  }
+
+  async function loadLiveData() {
+    if (state.dataSource !== 'horizons') return;
+    if (state.scenarios.some((s) => s.profile)) {
+      status('Live Horizons mode is unavailable for uploaded terrain profiles; using the local model.');
+      return;
+    }
+    const key = liveKey();
+    if (liveLoading || liveRequestKey === key) return;
+    liveLoading = true; liveRequestKey = key; status('Loading live JPL Horizons ephemerides…');
+    try {
+      const results = await Promise.all(state.scenarios.map(async (sc) => {
+        const q = new URLSearchParams({
+          site: `${sc.lat}:${sc.lon}`, start: new Date(sc.tMs).toISOString(),
+          hours: String(state.windowDays * 24),
+          step: state.windowDays <= 7 ? '5' : state.windowDays <= 15 ? '10' : '15',
+          horizon: String(sc.maskDeg), minSun: String(state.opts.minSunElev),
+          minEarth: String(state.opts.minEarthElev), missionDays: String(state.missionDays), source: 'horizons'
+        });
+        const response = await fetch(`/api/timeline?${q}`);
+        if (!response.ok) throw new Error(`JPL Horizons request failed (${response.status})`);
+        return { id: sc.id, result: await response.json() };
+      }));
+      liveResults.clear();
+      let fallback = 0;
+      results.forEach(({ id, result }) => {
+        if (result.source !== 'horizons') fallback++;
+        const continuous = (part) => part.currentlyUp ? (part.hoursUntilChange == null ? Infinity : part.hoursUntilChange) : 0;
+        liveResults.set(id, {
+          key, value: {
+            site: siteOf(byId(id)), ser: result.samples, sum: result.summary,
+            mission: { sunH: continuous(result.summary.sun), earthH: continuous(result.summary.earth), bothH: continuous(result.summary.both) }
+          }
+        });
+      });
+      cache.clear();
+      status(fallback ? `Live Horizons unavailable for ${fallback} site${fallback === 1 ? '' : 's'}; analytic fallback used.` : 'Live JPL Horizons data loaded.');
+      refresh({ finder: false, live: false });
+    } catch (error) {
+      liveResults.clear(); status(`Live data unavailable: ${error.message}`);
+    } finally {
+      liveLoading = false;
+      if (state.dataSource === 'horizons' && liveRequestKey !== liveKey()) {
+        liveRequestKey = '';
+        loadLiveData();
+      }
+    }
   }
 
   // Next rise/set, cached as absolute event times so playback stays cheap.
@@ -232,6 +301,25 @@
     $('cmp').innerHTML = h + '</tbody>';
   }
 
+  function exportCsv() {
+    const rows = [['Scenario', 'Site', 'Touchdown UTC', 'Window days', 'Mission days', 'Sunlit', 'Earth in view', 'Sun + Earth', 'Continuous sunlight hours', 'Continuous Earth hours', 'Meets mission']];
+    state.scenarios.forEach((sc) => {
+      const d = derived(sc), need = state.missionDays * 24;
+      rows.push([
+        sc.name, `${sc.lat.toFixed(4)}, ${sc.lon.toFixed(4)}`, utcStr(sc.tMs), state.windowDays, state.missionDays,
+        pct(d.sum.sunFrac), pct(d.sum.earthFrac), pct(d.sum.bothFrac),
+        fmtHours(d.mission.sunH), fmtHours(d.mission.earthH),
+        d.mission.sunH >= need && d.mission.earthH >= need ? 'yes' : 'no'
+      ]);
+    });
+    const csv = rows.map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(',')).join('\n');
+    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+    const a = document.createElement('a');
+    a.href = url; a.download = `lunasight-${dateStr(Date.now())}.csv`;
+    document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+    status('Comparison exported as CSV.');
+  }
+
   // ---------------------------------------------------------------- finder
   let finderTimer = null, finderData = null, finderSc = null;
   function scheduleFinder() {
@@ -322,6 +410,7 @@
     state.offsetMs = clamp(state.offsetMs, 0, state.windowDays * DAY);
     updateCards(); drawTimelines(); renderTable(); updateClock(); renderTiles(); saveHash();
     if (opt.finder !== false) scheduleFinder();
+    if (state.dataSource === 'horizons' && opt.live !== false) loadLiveData();
   }
   function refreshDynamic() { updateCards(); drawTimelines(); updateClock(); }
 
@@ -412,6 +501,11 @@
     num('missionDays', (v) => { state.missionDays = clamp(v, 0.5, 60); });
     num('minSun', (v) => { state.opts.minSunElev = v; });
     num('minEarth', (v) => { state.opts.minEarthElev = v; });
+    $('data-source').addEventListener('change', (e) => {
+      state.dataSource = e.target.value === 'horizons' ? 'horizons' : 'analytic';
+      liveResults.clear(); liveRequestKey = ''; cache.clear();
+      refresh({ finder: false });
+    });
     $('limb').addEventListener('change', (e) => { state.opts.sunLimb = e.target.checked; refresh(); });
     $('view-btns').addEventListener('click', (e) => { const b = e.target.closest('button'); if (!b) return; state.view = b.dataset.view; markSeg('view-btns', 'view', state.view); updateCards(); saveHash(); });
     $('y-btns').addEventListener('click', (e) => { const b = e.target.closest('button'); if (!b) return; state.yMode = b.dataset.y; markSeg('y-btns', 'y', state.yMode); drawTimelines(); });
@@ -429,6 +523,13 @@
       try { await navigator.clipboard.writeText(location.href); e.target.textContent = 'Link copied ✓'; }
       catch (err) { window.prompt('Copy this link:', location.href); }
       setTimeout(() => { e.target.textContent = 'Copy link'; }, 1800);
+    });
+    $('btn-export').addEventListener('click', exportCsv);
+    $('btn-theme').addEventListener('click', () => setTheme(state.theme === 'light' ? 'dark' : 'light'));
+    window.addEventListener('keydown', (e) => {
+      if (e.key.toLowerCase() === 't' && !/input|select|textarea/i.test(e.target.tagName)) {
+        setTheme(state.theme === 'light' ? 'dark' : 'light');
+      }
     });
 
     // clock, scrubbing, playback
@@ -496,6 +597,8 @@
 
   // ------------------------------------------------------------------ init
   function init() {
+    const savedTheme = localStorage.getItem('lunasight-theme');
+    setTheme(savedTheme || (matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark'));
     if (!loadHash()) {
       const t0 = Math.floor(Date.now() / HOUR) * HOUR;
       state.scenarios = [];
@@ -503,6 +606,7 @@
     }
     $('win').value = String(state.windowDays);
     $('missionDays').value = state.missionDays; $('minSun').value = state.opts.minSunElev; $('minEarth').value = state.opts.minEarthElev;
+    $('data-source').value = state.dataSource;
     $('limb').checked = state.opts.sunLimb;
     markSeg('view-btns', 'view', state.view); markSeg('y-btns', 'y', state.yMode);
     bind(); renderCards(); refresh();

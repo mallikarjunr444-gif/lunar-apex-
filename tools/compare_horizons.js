@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /*
- * Cross-check the Lunar Apex engine against JPL Horizons (run on a machine with internet).
+ * Cross-check the LunaSight engine against JPL Horizons (run on a machine with internet).
  *   node tools/compare_horizons.js <lat> <lon_east> "<YYYY-MM-DD HH:MM>" [hours=48] [stepMin=360]
  * Example: node tools/compare_horizons.js -89.9 0 "2027-03-01 00:00" 48 360
  *
@@ -10,7 +10,7 @@
  * uses a spherical Moon and Meeus libration).
  */
 'use strict';
-const LE = require('../js/engine.js');
+const LE = require('../frontend/js/engine.js');
 const [lat, lon, start, hours = '48', stepMin = '360'] = process.argv.slice(2);
 if (!start) { console.error('usage: node tools/compare_horizons.js <lat> <lon_east> "<YYYY-MM-DD HH:MM>" [hours] [stepMin]'); process.exit(1); }
 

@@ -21,8 +21,14 @@ export async function horizonsElAz(site, bodyId, start, stop, stepMin) {
   });
 }
 
-export async function horizonsSeries(site, start, hours, stepMin, horizonDeg = 0) {
+export async function horizonsSeries(site, start, hours, stepMin, horizonDeg = 0, thresholds = {}) {
   const stop = new Date(start.getTime() + hours * 3600000);
   const [sun, earth] = await Promise.all([horizonsElAz(site, "10", start, stop, stepMin), horizonsElAz(site, "399", start, stop, stepMin)]);
-  return sun.map((s, i) => ({ t: s.t, sun: { el: s.el, az: s.az, up: s.el > horizonDeg }, earth: { el: earth[i].el, az: earth[i].az, up: earth[i].el > horizonDeg } }));
+  const sunFloor = horizonDeg + (Number(thresholds.minSunElev) || 0);
+  const earthFloor = horizonDeg + (Number(thresholds.minEarthElev) || 0);
+  return sun.map((s, i) => {
+    const e = earth[i];
+    const sunUp = s.el > sunFloor, earthUp = e.el > earthFloor;
+    return { t: s.t, sun: { el: s.el, az: s.az, up: sunUp }, earth: { el: e.el, az: e.az, up: earthUp }, both: { el: Math.min(s.el, e.el), az: s.az, up: sunUp && earthUp } };
+  });
 }

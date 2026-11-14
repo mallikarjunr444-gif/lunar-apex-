@@ -34,16 +34,19 @@ export function elAz(site, sp) {
 }
 
 // horizonDeg = terrain mask (flat default). A body is "up" when el > horizonDeg.
-export function analyticSample(site, date, horizonDeg = 0) {
+export function analyticSample(site, date, horizonDeg = 0, thresholds = {}) {
   const sp = subPoints(toJD(date));
   const s = elAz(site, sp.sun), e = elAz(site, sp.earth);
-  return { t: date.toISOString(), sun: { ...s, up: s.el > horizonDeg }, earth: { ...e, up: e.el > horizonDeg } };
+  const sunFloor = horizonDeg + (Number(thresholds.minSunElev) || 0);
+  const earthFloor = horizonDeg + (Number(thresholds.minEarthElev) || 0);
+  const sun = { ...s, up: s.el > sunFloor }, earth = { ...e, up: e.el > earthFloor };
+  return { t: date.toISOString(), sun, earth, both: { el: Math.min(s.el, e.el), az: s.az, up: sun.up && earth.up } };
 }
 
-export function series(site, start, hours, stepMin = 60, horizonDeg = 0) {
+export function series(site, start, hours, stepMin = 60, horizonDeg = 0, thresholds = {}) {
   const out = [];
   for (let m = 0; m <= hours * 60; m += stepMin)
-    out.push(analyticSample(site, new Date(start.getTime() + m * 60000), horizonDeg));
+    out.push(analyticSample(site, new Date(start.getTime() + m * 60000), horizonDeg, thresholds));
   return out;
 }
 
@@ -61,7 +64,7 @@ export function summarize(samples) {
     if (open !== null) windows.push([samples[open].t, samples[samples.length - 1].t]);
     let toChange = null;
     for (let i = 1; i < samples.length; i++) if (samples[i][key].up !== samples[0][key].up) { toChange = +(i * dt).toFixed(2); break; }
-    const els = samples.map((s) => s[key].el), ups = els.filter((x) => x > 0);
+    const els = samples.map((s) => s[key].el), ups = samples.filter((s) => s[key].up).map((s) => s[key].el);
     return {
       percentUp: +(100 * upN / samples.length).toFixed(1),
       longestUpHours: +(longestUp * dt).toFixed(1),
@@ -72,5 +75,24 @@ export function summarize(samples) {
     };
   };
   const power = samples.reduce((a, s) => a + Math.max(0, Math.sin(s.sun.el * D2R)), 0) / samples.length;
-  return { sun: stat("sun"), earth: stat("earth"), relativePower: +power.toFixed(3) };
+  const sun = stat("sun"), earth = stat("earth"), both = stat("both");
+  return {
+    sun, earth, both,
+    relativePower: +power.toFixed(3),
+    relativePowerPercent: +(power * 100).toFixed(1),
+    peakSunElevation: sun.maxElevation,
+    peakEarthElevation: earth.maxElevation
+  };
+}
+
+export function assess(summary, missionDays = 7) {
+  const requiredHours = Math.max(0, Number(missionDays) || 0) * 24;
+  return {
+    missionDays: Number(missionDays),
+    requiredHours,
+    power: summary.sun.longestUpHours >= requiredHours,
+    communication: summary.earth.longestUpHours >= requiredHours,
+    joint: summary.both.longestUpHours >= requiredHours,
+    score: Math.round((Number(summary.sun.percentUp) + Number(summary.earth.percentUp) + Number(summary.both.percentUp)) / 3)
+  };
 }
