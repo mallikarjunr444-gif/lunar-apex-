@@ -117,6 +117,7 @@ canvas { display: block; width: 100%; }
 .chart.tl { height: 250px; cursor: crosshair; }
 .chart.lanes { height: 120px; cursor: crosshair; }
 .chart.finder { height: 240px; cursor: crosshair; }
+.chart.polar-map { height: 340px; cursor: crosshair; border: 1px solid var(--line); border-radius: 8px; }
 .legend { display: flex; flex-wrap: wrap; gap: 6px 16px; color: var(--mute); font-size: 12px; margin: 6px 0 2px; }
 .legend .sw { display: inline-block; width: 12px; height: 8px; border-radius: 2px; margin-right: 5px; vertical-align: middle; }
 .legend .sw.line { height: 0; border-top: 2px dashed #ff9f1c; border-radius: 0; }

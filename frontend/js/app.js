@@ -14,7 +14,7 @@
     scenarios: [], windowDays: 30, missionDays: 7,
     opts: { sunLimb: true, minSunElev: 0, minEarthElev: 0 },
     view: 'panorama', yMode: 'zoom', offsetMs: 0, playing: false, dataSource: 'analytic',
-    finderId: null, finderDays: 365, theme: 'dark', terrainProfiles: []
+    finderId: null, mapScenarioId: null, finderDays: 365, theme: 'dark', terrainProfiles: []
   };
 
   // ------------------------------------------------------------ formatting
@@ -57,6 +57,35 @@
   }
   function profileLabel(profile) {
     return profile ? `SIGHTLINE LOLA horizon · ${profile.mastHeightM} m mast` : '';
+  }
+  async function loadMissionCatalog() {
+    const output = $('mission-catalog-status');
+    try {
+      const response = await fetch('/api/sites');
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const catalog = await response.json();
+      if (!Array.isArray(catalog)) throw new Error('Invalid site catalog');
+      const grouped = new Map();
+      catalog.filter((site) => site.catalog && site.sourceUrl).forEach((site) => {
+        if (window.LUNAR_SITE_INDEX[site.id]) return;
+        const item = {
+          ...site,
+          h: Number.isFinite(site.h) ? site.h : 0
+        };
+        window.LUNAR_SITE_INDEX[item.id] = item;
+        if (!grouped.has(item.group)) grouped.set(item.group, []);
+        grouped.get(item.group).push(item);
+      });
+      grouped.forEach((items, group) => window.LUNAR_SITES.push({ group, items }));
+      const added = Array.from(grouped.values()).reduce((count, items) => count + items.length, 0);
+      const revision = catalog.find((site) => site.catalogRevision)?.catalogRevision;
+      output.textContent = `CLPS Lunar Horizon catalog active: ${added} sourced comparison sites${revision ? ` · snapshot ${revision.slice(0, 7)}` : ''}. Region centers are approximate.`;
+      output.classList.remove('terrain-warning');
+    } catch (error) {
+      output.textContent = 'CLPS mission-site catalog unavailable; built-in site presets remain available.';
+      output.classList.add('terrain-warning');
+      console.error('Mission site catalog unavailable:', error);
+    }
   }
   function newScenario(siteId, tMs, over) {
     const s = window.LUNAR_SITE_INDEX[siteId];
@@ -105,40 +134,39 @@
 
   async function loadLiveData() {
     if (state.dataSource !== 'horizons') return;
-    if (state.scenarios.some((s) => s.profile)) {
-      status('Live Horizons mode is unavailable for uploaded terrain profiles; using the local model.');
-      return;
-    }
     const key = liveKey();
     if (liveLoading || liveRequestKey === key) return;
     liveLoading = true; liveRequestKey = key; status('Loading live JPL Horizons ephemerides…');
     try {
       const results = await Promise.all(state.scenarios.map(async (sc) => {
         const q = new URLSearchParams({
-          site: `${sc.lat}:${sc.lon}`, start: new Date(sc.tMs).toISOString(),
+          site: `${sc.lat}:${sc.lon}:${sc.h || 0}`, start: new Date(sc.tMs).toISOString(),
           hours: String(state.windowDays * 24),
           step: state.windowDays <= 7 ? '5' : state.windowDays <= 15 ? '10' : '15',
-          horizon: String(sc.maskDeg), minSun: String(state.opts.minSunElev),
+          horizon: '0', minSun: String(state.opts.minSunElev),
           minEarth: String(state.opts.minEarthElev), missionDays: String(state.missionDays), source: 'horizons'
         });
         const response = await fetch(`/api/timeline?${q}`);
         if (!response.ok) throw new Error(`JPL Horizons request failed (${response.status})`);
         return { id: sc.id, result: await response.json() };
       }));
+      if (key !== liveKey()) return;
       liveResults.clear();
       let fallback = 0;
       results.forEach(({ id, result }) => {
         if (result.source !== 'horizons') fallback++;
-        const continuous = (part) => part.currentlyUp ? (part.hoursUntilChange == null ? Infinity : part.hoursUntilChange) : 0;
+        const scenario = byId(id);
+        const adapted = window.LunarLiveAdapter.adapt(result, siteOf(scenario), state.opts, LE);
         liveResults.set(id, {
           key, value: {
-            site: siteOf(byId(id)), ser: result.samples, sum: result.summary,
-            mission: { sunH: continuous(result.summary.sun), earthH: continuous(result.summary.earth), bothH: continuous(result.summary.both) }
+            site: siteOf(scenario), ...adapted
           }
         });
       });
       cache.clear();
-      status(fallback ? `Live Horizons unavailable for ${fallback} site${fallback === 1 ? '' : 's'}; analytic fallback used.` : 'Live JPL Horizons data loaded.');
+      status(fallback
+        ? `Live Horizons unavailable for ${fallback} site${fallback === 1 ? '' : 's'}; analytic fallback used.`
+        : 'Live JPL Horizons positions loaded; terrain masks applied locally.');
       refresh({ finder: false, live: false });
     } catch (error) {
       liveResults.clear(); status(`Live data unavailable: ${error.message}`);
@@ -171,6 +199,10 @@
   }
 
   function cardHTML(sc) {
+    const selectedSite = window.LUNAR_SITE_INDEX[sc.siteId];
+    const provenance = selectedSite && selectedSite.sourceUrl
+      ? `<a href="${esc(selectedSite.sourceUrl)}" target="_blank" rel="noopener">${esc(selectedSite.sourceLabel || 'Catalog source')} ↗</a>`
+      : '';
     return `
     <article class="card" data-id="${sc.id}" style="--c:${sc.color}">
       <header class="card-h">
@@ -205,7 +237,7 @@
       <div class="chips"></div>
       <dl class="stats"></dl>
       <div class="site-resources">
-        <div class="resource-coords">Map coordinates: ${sc.lat.toFixed(4)}° N+, ${sc.lon.toFixed(4)}° E+</div>
+        <div class="resource-coords">Map coordinates: ${sc.lat.toFixed(4)}° N+, ${sc.lon.toFixed(4)}° E+${provenance ? ` · ${provenance}` : ''}</div>
         <div class="resource-actions">
           <a class="btn small" href="https://quickmap.lroc.asu.edu/" target="_blank" rel="noopener">QuickMap</a>
           <a class="btn small" href="https://trek.nasa.gov/moon/" target="_blank" rel="noopener">Moon Trek</a>
@@ -223,7 +255,17 @@
     sel.innerHTML = state.scenarios.map((s) => `<option value="${s.id}">${esc(s.name)}</option>`).join('');
     if (!byId(state.finderId)) state.finderId = state.scenarios[0] ? state.scenarios[0].id : null;
     sel.value = String(state.finderId);
+    const mapSelect = $('map-scenario');
+    mapSelect.innerHTML = state.scenarios.map((s) => `<option value="${s.id}">${esc(s.name)}</option>`).join('');
+    if (!byId(state.mapScenarioId)) state.mapScenarioId = state.scenarios[0] ? state.scenarios[0].id : null;
+    mapSelect.value = String(state.mapScenarioId);
     updateCards();
+  }
+
+  function drawSiteMap() {
+    if (!state.scenarios.length) return;
+    const sites = Object.values(window.LUNAR_SITE_INDEX);
+    CH.drawPolarMap($('polar-map'), sites, state.scenarios, state.mapScenarioId);
   }
 
   function updateCards() {
@@ -245,7 +287,17 @@
       }
       const d = derived(sc);
       const td = sc.tMs + state.offsetMs;
-      const ev = LE.evalSite(d.site, store.at(td), state.opts);
+      const live = liveResults.get(sc.id);
+      const usingLive = state.dataSource === 'horizons' && live && live.key === liveKey();
+      const local = LE.evalSite(d.site, store.at(td), state.opts);
+      const liveIndex = usingLive ? clamp(Math.round(state.offsetMs / d.ser.stepMs), 0, d.ser.n - 1) : 0;
+      const ev = usingLive ? {
+        ...local,
+        sun: { ...local.sun, alt: d.ser.sunAlt[liveIndex], az: d.ser.sunAz[liveIndex] },
+        earth: { ...local.earth, alt: d.ser.earthAlt[liveIndex], az: d.ser.earthAz[liveIndex] },
+        sunUp: Boolean(d.ser.sunUp[liveIndex]),
+        earthUp: Boolean(d.ser.earthUp[liveIndex])
+      } : local;
       const canvas = el.querySelector('canvas.sky');
       canvas.classList.toggle('dome', state.view === 'dome');
       (state.view === 'dome' ? CH.drawDome : CH.drawPanorama)(canvas, ev, d.site);
@@ -259,7 +311,18 @@
         chip(m.sunH >= need ? 'pass' : 'fail', `Power ${m.sunH >= need ? '✓' : '✗'} ${fmtHours(m.sunH)} from T+0`) +
         chip(m.earthH >= need ? 'pass' : 'fail', `Comm ${m.earthH >= need ? '✓' : '✗'} ${fmtHours(m.earthH)} from T+0`);
 
-      const evS = nextEvent(sc, 'sun', td, d.site), evE = nextEvent(sc, 'earth', td, d.site);
+      const sampledEvent = (flags) => {
+        const start = liveIndex;
+        const up = Boolean(flags[start]);
+        for (let i = start + 1; i < flags.length; i++) {
+          if (Boolean(flags[i]) !== up) {
+            return { up, type: up ? 'set' : 'rise', at: d.ser.t0 + i * d.ser.stepMs };
+          }
+        }
+        return { up, type: up ? 'set' : 'rise', at: null };
+      };
+      const evS = usingLive ? sampledEvent(d.ser.sunUp) : nextEvent(sc, 'sun', td, d.site);
+      const evE = usingLive ? sampledEvent(d.ser.earthUp) : nextEvent(sc, 'earth', td, d.site);
       const cd = (e) => (e.at ? `${fmtDur(e.at - td)}` : '> 60 d');
       const lbl = (e, a, b) => (e.up ? a : b);
       const shadow = ev.sun.alt > 0.05 ? (1 / Math.tan(ev.sun.alt * Math.PI / 180)) : null;
@@ -351,6 +414,82 @@
     a.href = url; a.download = `lunasight-${dateStr(Date.now())}.csv`;
     document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
     status('Comparison exported as CSV.');
+  }
+
+  function exportEvidence() {
+    const requiredHours = state.missionDays * 24;
+    const report = {
+      schemaVersion: 1,
+      generatedAt: new Date().toISOString(),
+      settings: {
+        requestedDataSource: state.dataSource,
+        analysisWindowDays: state.windowDays,
+        missionLengthDays: state.missionDays,
+        sunLimb: state.opts.sunLimb,
+        minimumSunElevationDeg: state.opts.minSunElev,
+        minimumEarthElevationDeg: state.opts.minEarthElev
+      },
+      scenarios: state.scenarios.map((sc) => {
+        const d = derived(sc);
+        const site = window.LUNAR_SITE_INDEX[sc.siteId];
+        const live = liveResults.get(sc.id);
+        const liveSource = state.dataSource === 'horizons' && live && live.key === liveKey()
+          ? live.value.source
+          : 'local analytic model';
+        const duration = (hours) => Number.isFinite(hours) ? hours : null;
+        return {
+          name: sc.name,
+          site: {
+            id: sc.siteId,
+            latitudeDeg: sc.lat,
+            longitudeDeg: sc.lon,
+            elevationKm: sc.h,
+            approximate: Boolean(site && site.approx),
+            catalog: site && site.catalog || null,
+            catalogRevision: site && site.catalogRevision || null,
+            sourceLabel: site && site.sourceLabel || null,
+            sourceUrl: site && site.sourceUrl || null
+          },
+          touchdownUtc: new Date(sc.tMs).toISOString(),
+          ephemerisSource: liveSource,
+          terrain: {
+            profile: sc.profileName || null,
+            profileId: site && site.terrainProfileId || null,
+            uniformMaskDeg: sc.maskDeg
+          },
+          summary: d.sum,
+          missionAssessment: {
+            requiredHours,
+            sunlightContinuousHours: duration(d.mission.sunH),
+            sunlightContinuousThroughAnalysisWindow: !Number.isFinite(d.mission.sunH),
+            earthContactContinuousHours: duration(d.mission.earthH),
+            earthContactContinuousThroughAnalysisWindow: !Number.isFinite(d.mission.earthH),
+            bothContinuousHours: duration(d.mission.bothH),
+            powerPass: d.mission.sunH >= requiredHours,
+            communicationsPass: d.mission.earthH >= requiredHours,
+            jointPass: d.mission.bothH >= requiredHours
+          }
+        };
+      }),
+      method: 'Topocentric Sun/Earth geometry, sampled availability, and simplified solar-incidence proxies. Horizons mode uses JPL Horizons positions; terrain masks are applied in the browser.',
+      limitations: [
+        'Candidate-region centers are approximate and are not landing-safety coordinates.',
+        'Horizon results are only terrain-aware where a cited profile or user-supplied mask is available.',
+        'No atmosphere, eclipses, antenna pointing, thermal constraints, dust, or landing hazard model.',
+        'Screening output is not mission-certification data.'
+      ],
+      references: [
+        'https://ssd-api.jpl.nasa.gov/doc/horizons.html',
+        'https://github.com/WarRinOP/sightline',
+        'https://github.com/localizedprojects/CLPS-MOON-BROWSER'
+      ]
+    };
+    const blob = new Blob([JSON.stringify(report, null, 2)], { type: 'application/json;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url; link.download = `lunasight-evidence-${dateStr(Date.now())}.json`;
+    document.body.appendChild(link); link.click(); link.remove(); URL.revokeObjectURL(url);
+    status('Scenario evidence exported as JSON.');
   }
 
   // ---------------------------------------------------------------- finder
@@ -506,7 +645,7 @@
   function refresh(opt) {
     opt = opt || {};
     state.offsetMs = clamp(state.offsetMs, 0, state.windowDays * DAY);
-    updateCards(); drawTimelines(); renderTable(); updateClock(); renderTiles(); saveHash();
+    updateCards(); drawSiteMap(); drawTimelines(); renderTable(); updateClock(); renderTiles(); saveHash();
     if (opt.finder !== false) scheduleFinder();
     if (state.dataSource === 'horizons' && opt.live !== false) loadLiveData();
   }
@@ -529,6 +668,41 @@
 
   function bind() {
     const cards = $('cards');
+    $('map-scenario').addEventListener('change', (event) => {
+      state.mapScenarioId = Number(event.target.value);
+      drawSiteMap();
+    });
+    $('polar-map').addEventListener('click', (event) => {
+      const sc = byId(state.mapScenarioId);
+      const canvas = $('polar-map'), geometry = canvas._polarGeometry;
+      if (!sc || !geometry) return;
+      const rect = canvas.getBoundingClientRect();
+      const x = event.clientX - rect.left, y = event.clientY - rect.top;
+      const nearest = geometry.markers.reduce((best, marker) => {
+        const distance = Math.hypot(marker.x - x, marker.y - y);
+        return distance < best.distance ? { marker, distance } : best;
+      }, { marker: null, distance: 13 });
+      if (nearest.marker) {
+        const site = nearest.marker.site;
+        sc.siteId = site.id; sc.lat = site.lat; sc.lon = site.lon; sc.h = site.h || 0;
+        if (sc.autoName) sc.name = site.name;
+        const terrain = terrainProfileFor(site);
+        sc.profile = terrain ? Float32Array.from(terrain.horizonElevationDeg) : null;
+        sc.profileName = profileLabel(terrain); sc.profileId++;
+        $('site-map-status').textContent = `${site.name} · ${site.lat.toFixed(4)}° N+, ${site.lon.toFixed(4)}° E+${site.approx ? ' · approximate region center' : ''}.`;
+      } else {
+        const point = CH.unprojectPolar(x, y, geometry.cx, geometry.cy, geometry.radius);
+        if (!point) {
+          $('site-map-status').textContent = 'Choose a location inside the 60°S–90°S circle.';
+          return;
+        }
+        sc.siteId = 'custom'; sc.lat = point.lat; sc.lon = point.lon; sc.h = 0;
+        sc.profile = null; sc.profileName = ''; sc.profileId++;
+        if (sc.autoName) sc.name = `Custom ${sc.lat.toFixed(2)}°, ${sc.lon.toFixed(2)}°`;
+        $('site-map-status').textContent = `Custom site · ${sc.lat.toFixed(4)}° N+, ${sc.lon.toFixed(4)}° E+.`;
+      }
+      syncInputs(sc); syncFinderSelect(); refresh();
+    });
     cards.addEventListener('input', (e) => {
       const el = e.target.closest('.card'); if (!el) return;
       const sc = byId(el.dataset.id), t = e.target;
@@ -639,6 +813,7 @@
       setTimeout(() => { e.target.textContent = 'Copy link'; }, 1800);
     });
     $('btn-export').addEventListener('click', exportCsv);
+    $('btn-evidence').addEventListener('click', exportEvidence);
     $('btn-theme').addEventListener('click', () => setTheme(state.theme === 'light' ? 'dark' : 'light'));
     window.addEventListener('keydown', (e) => {
       if (e.key.toLowerCase() === 't' && !/input|select|textarea/i.test(e.target.tagName)) {
@@ -730,6 +905,7 @@
       $('terrain-status').classList.add('terrain-warning');
       console.error('Terrain profiles unavailable:', error);
     }
+    await loadMissionCatalog();
     const savedTheme = localStorage.getItem('lunasight-theme');
     setTheme(savedTheme || (matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark'));
     if (!loadHash()) {

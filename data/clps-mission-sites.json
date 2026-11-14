@@ -1,0 +1,184 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "project": "CLPS Lunar Mission Browser (Lunar Horizon)",
+    "repository": "https://github.com/localizedprojects/CLPS-MOON-BROWSER",
+    "revision": "9801046af387d40cc77db4f0557c802ad8cee5b4",
+    "path": "app/assets/data/sites.json",
+    "fileSha": "ea2ed1ea662110bacb90f2e50ebb2b42c3514452",
+    "license": "MIT"
+  },
+  "coordinateDisclaimer": "Candidate-region centers are approximate. Site coordinates and elevations are catalog metadata, not terrain-horizon or landing-safety validation.",
+  "sites": [
+    {
+      "id": "clps-artemis3-haworth",
+      "name": "Haworth (Artemis III region center)",
+      "group": "Artemis III regions",
+      "lat": -86.75,
+      "lon": -23.67,
+      "elevationM": 1550.8,
+      "approx": true,
+      "sourceLabel": "Artemis III candidate-region study",
+      "sourceUrl": "https://sservi.directus.app/assets/2483b7e0-a336-443d-8739-3d5f4756e1fb.pdf"
+    },
+    {
+      "id": "clps-artemis3-malapert-massif",
+      "name": "Malapert Massif (Artemis III region center)",
+      "group": "Artemis III regions",
+      "lat": -85.98,
+      "lon": -0.26,
+      "elevationM": 4816.9,
+      "approx": true,
+      "sourceLabel": "Artemis III candidate-region study",
+      "sourceUrl": "https://sservi.directus.app/assets/2483b7e0-a336-443d-8739-3d5f4756e1fb.pdf"
+    },
+    {
+      "id": "clps-artemis3-mons-mouton-plateau",
+      "name": "Mons Mouton Plateau (Artemis III region center)",
+      "group": "Artemis III regions",
+      "lat": -84.3,
+      "lon": 30.6,
+      "elevationM": 5290.8,
+      "approx": true,
+      "sourceLabel": "LROC NAC region of interest",
+      "sourceUrl": "https://data.lroc.im-ldi.com/lroc/view_rdr/NAC_ROI_MOUTNPLTLO1"
+    },
+    {
+      "id": "clps-artemis3-mons-mouton",
+      "name": "Mons Mouton (Artemis III region center)",
+      "group": "Artemis III regions",
+      "lat": -85.43,
+      "lon": 31.83,
+      "elevationM": 6397.4,
+      "approx": true,
+      "sourceLabel": "Artemis III candidate-region study",
+      "sourceUrl": "https://sservi.directus.app/assets/2483b7e0-a336-443d-8739-3d5f4756e1fb.pdf"
+    },
+    {
+      "id": "clps-artemis3-nobile-rim-1",
+      "name": "Nobile Rim 1 (Artemis III region center)",
+      "group": "Artemis III regions",
+      "lat": -85.44,
+      "lon": 37.44,
+      "elevationM": 5926.7,
+      "approx": true,
+      "sourceLabel": "Artemis III candidate-region study",
+      "sourceUrl": "https://sservi.directus.app/assets/2483b7e0-a336-443d-8739-3d5f4756e1fb.pdf"
+    },
+    {
+      "id": "clps-artemis3-nobile-rim-2",
+      "name": "Nobile Rim 2 (Artemis III region center)",
+      "group": "Artemis III regions",
+      "lat": -83.95,
+      "lon": 58.74,
+      "elevationM": 988.5,
+      "approx": true,
+      "sourceLabel": "Artemis III candidate-region study",
+      "sourceUrl": "https://sservi.directus.app/assets/2483b7e0-a336-443d-8739-3d5f4756e1fb.pdf"
+    },
+    {
+      "id": "clps-artemis3-de-gerlache-rim-2",
+      "name": "de Gerlache Rim 2 (Artemis III region center)",
+      "group": "Artemis III regions",
+      "lat": -88.22,
+      "lon": -63.43,
+      "elevationM": -176.1,
+      "approx": true,
+      "sourceLabel": "Artemis III candidate-region study",
+      "sourceUrl": "https://sservi.directus.app/assets/2483b7e0-a336-443d-8739-3d5f4756e1fb.pdf"
+    },
+    {
+      "id": "clps-artemis3-peak-cabeus-b",
+      "name": "Peak near Cabeus B (Artemis III region center)",
+      "group": "Artemis III regions",
+      "lat": -83.6,
+      "lon": -68.8,
+      "elevationM": 4534.9,
+      "approx": true,
+      "sourceLabel": "LROC NAC region of interest",
+      "sourceUrl": "https://data.lroc.im-ldi.com/lroc/view_rdr/NAC_ROI_CABEUSPKLO1"
+    },
+    {
+      "id": "clps-derosa-shackleton-rim-sr1",
+      "name": "Shackleton Rim (De Rosa SR1)",
+      "group": "Illumination study points",
+      "lat": -89.7755,
+      "lon": -156.448,
+      "elevationM": 1733.1,
+      "sourceLabel": "De Rosa et al. (2012), arXiv:1208.5587",
+      "sourceUrl": "https://arxiv.org/pdf/1208.5587"
+    },
+    {
+      "id": "clps-derosa-connecting-ridge-cr1",
+      "name": "Connecting Ridge (De Rosa CR1)",
+      "group": "Illumination study points",
+      "lat": -89.4679,
+      "lon": -137.411,
+      "elevationM": 1943,
+      "sourceLabel": "De Rosa et al. (2012), arXiv:1208.5587",
+      "sourceUrl": "https://arxiv.org/pdf/1208.5587"
+    },
+    {
+      "id": "clps-derosa-shackleton-peak-sv1",
+      "name": "Peak near Shackleton (De Rosa SV1)",
+      "group": "Illumination study points",
+      "lat": -88.8247,
+      "lon": 124.1359,
+      "elevationM": 1597.4,
+      "sourceLabel": "De Rosa et al. (2012), arXiv:1208.5587",
+      "sourceUrl": "https://arxiv.org/pdf/1208.5587"
+    },
+    {
+      "id": "clps-derosa-malapert-peak-mp1",
+      "name": "Malapert Peak (De Rosa MP1)",
+      "group": "Illumination study points",
+      "lat": -85.9756,
+      "lon": -2.11241,
+      "elevationM": 4969.3,
+      "sourceLabel": "De Rosa et al. (2012), arXiv:1208.5587",
+      "sourceUrl": "https://arxiv.org/pdf/1208.5587"
+    },
+    {
+      "id": "clps-derosa-de-gerlache-rim-gr1",
+      "name": "de Gerlache Rim (De Rosa GR1)",
+      "group": "Illumination study points",
+      "lat": -88.6952,
+      "lon": -68.2846,
+      "elevationM": 1778.2,
+      "sourceLabel": "De Rosa et al. (2012), arXiv:1208.5587",
+      "sourceUrl": "https://arxiv.org/pdf/1208.5587"
+    },
+    {
+      "id": "clps-im2-athena-landed",
+      "name": "IM-2 Athena (reported landed position)",
+      "group": "Mission locations",
+      "lat": -84.7906,
+      "lon": 29.1957,
+      "elevationM": 5321.1,
+      "sourceLabel": "LROC landing image",
+      "sourceUrl": "https://www.lroc.im-ldi.com/images/1408"
+    },
+    {
+      "id": "clps-im2-intended-target",
+      "name": "IM-2 Athena (pre-landing target)",
+      "group": "Mission locations",
+      "lat": -84.78,
+      "lon": 29.13,
+      "elevationM": 5312.3,
+      "approx": true,
+      "sourceLabel": "LROC target image",
+      "sourceUrl": "https://lroc.im-ldi.com/images/1401"
+    },
+    {
+      "id": "clps-viper-mission-area",
+      "name": "VIPER primary mission area center",
+      "group": "Mission locations",
+      "lat": -85.42088,
+      "lon": 31.6218,
+      "elevationM": 6417.4,
+      "approx": true,
+      "sourceLabel": "VIPER mission area study",
+      "sourceUrl": "https://iopscience.iop.org/article/10.3847/PSJ/ae061a"
+    }
+  ]
+}

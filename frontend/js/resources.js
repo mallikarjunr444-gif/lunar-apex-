@@ -41,31 +41,31 @@ const researchGroups = [
         name: 'SIGHTLINE',
         url: 'https://github.com/WarRinOP/sightline',
         summary: 'South-pole sunlight, Earth visibility, LOLA terrain, and SPICE.',
-        status: 'Apache-2.0 · TypeScript · Node >=24. Latest reported CI and audit passed (2026-10-10); an earlier CI run failed.'
+        status: 'Active data integration: three pinned LOLA-derived horizon profiles are used in site scenarios. Apache-2.0; no project code is vendored.'
       },
       {
         name: 'CLPS Lunar Mission Browser (Lunar Horizon)',
         url: 'https://github.com/localizedprojects/CLPS-MOON-BROWSER',
         summary: 'Flutter lunar mission browser with comparison and landing-window planning.',
-        status: 'MIT · Flutter/Dart + Python tools · CI and Pages deployment passed (2026-11-12).'
+        status: 'Active data integration: 16 attributed Artemis, illumination-study, and mission locations are available as selectable sites. MIT dataset snapshot 9801046.'
       },
       {
         name: 'Lunar Lighting Planner',
         url: 'https://github.com/astoreyai/lunar-lighting-planner',
         summary: 'Lunar lighting and landing-date planning.',
-        status: 'No license or dependency manifest found; no GitHub Actions workflow/runs found. Review before reuse.'
+        status: 'Clean-room capability: the landing-window finder ranks qualifying touchdown-date ranges. No license was found, so no upstream code or data is reused.'
       },
       {
         name: 'LuminaLuna',
         url: 'https://github.com/Planet-Coders/lunar-landing-site-navigator',
         summary: 'JPL Horizons comparison and 3D lunar site navigation.',
-        status: 'No license or CI workflow/runs found. README lists Next.js 14, React 18, Three.js, and TypeScript; do not reuse code without a license.'
+        status: 'Clean-room capabilities: live JPL Horizons comparison and a 2D interactive south-pole map. No upstream code or assets are reused; the repository has no license.'
       },
       {
         name: 'LightPath',
         url: 'https://github.com/AnmolGarg8/LightPath',
         summary: 'SPICE geometry, terrain horizons, and rover-route planning prototype.',
-        status: 'MIT · Python 3.11 · CI passed (2026-11-14). README marks several real-terrain/benchmark checks pending and says many fixtures are synthetic.'
+        status: 'Active workflow adaptation: export a provenance-bearing mission-evidence JSON report from this app’s own results. Rover routing is not claimed because upstream real-terrain checks remain pending and fixtures are synthetic.'
       }
     ]
   },

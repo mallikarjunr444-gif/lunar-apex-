@@ -72,9 +72,11 @@ async function readJson(req) {
 function parseSite(value) {
   if (!value) return null;
   if (value.includes(":")) {
-    const [lat, lon] = value.split(":").map(Number);
-    if (Number.isFinite(lat) && Number.isFinite(lon) && Math.abs(lat) <= 90 && Math.abs(lon) <= 360) {
-      return { id: value, name: `Custom (${lat}, ${lon})`, lat, lon: ((lon + 540) % 360) - 180, group: "Custom" };
+    const parts = value.split(":").map(Number);
+    const [lat, lon, h = 0] = parts;
+    if (parts.length <= 3 && Number.isFinite(lat) && Number.isFinite(lon) && Number.isFinite(h)
+        && Math.abs(lat) <= 90 && Math.abs(lon) <= 360 && h >= -10 && h <= 100) {
+      return { id: value, name: `Custom (${lat}, ${lon})`, lat, lon: ((lon + 540) % 360) - 180, h, group: "Custom" };
     }
     return null;
   }
@@ -82,7 +84,7 @@ function parseSite(value) {
 }
 
 async function computeOne(site, params) {
-  const key = [site.lat, site.lon, params.start.toISOString(), params.hours, params.stepMin, params.horizon,
+  const key = [site.lat, site.lon, site.h || 0, params.start.toISOString(), params.hours, params.stepMin, params.horizon,
     params.minSunElev, params.minEarthElev, params.source].join("|");
   if (cache.has(key)) return cache.get(key);
   let samples, used = "analytic";

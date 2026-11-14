@@ -3,6 +3,7 @@
   'use strict';
   const SUN = '#ffd166', EARTH = '#4cc9f0', OK = '#52d273', GRID = '#1b2540', TEXT = '#93a0bb';
   const LE = root.LunarEngine;
+  const D2R = Math.PI / 180, R2D = 180 / Math.PI;
 
   function setup(canvas) {
     const dpr = root.devicePixelRatio || 1;
@@ -239,6 +240,68 @@
     }
   }
 
+  function projectPolar(lat, lon, cx, cy, radius) {
+    const r = Math.tan((90 + lat) * D2R / 2) / Math.tan(15 * D2R);
+    const a = lon * D2R;
+    return { x: cx + radius * r * Math.sin(a), y: cy - radius * r * Math.cos(a) };
+  }
+
+  function unprojectPolar(x, y, cx, cy, radius) {
+    const dx = (x - cx) / radius, dy = (cy - y) / radius;
+    const r = Math.hypot(dx, dy);
+    if (r > 1 + 1e-12) return null;
+    const colat = 2 * Math.atan(Math.min(r, 1) * Math.tan(15 * D2R));
+    const lon = ((Math.atan2(dx, dy) * R2D + 540) % 360) - 180;
+    return { lat: -90 + colat * R2D, lon };
+  }
+
+  function drawPolarMap(canvas, sites, scenarios, activeId) {
+    const { ctx, w, h } = setup(canvas);
+    const cx = w / 2, cy = h / 2, radius = Math.max(10, Math.min(w * 0.44, h * 0.44));
+    ctx.fillStyle = '#050a14'; ctx.fillRect(0, 0, w, h);
+    ctx.fillStyle = 'rgba(76,201,240,.035)'; ctx.beginPath(); ctx.arc(cx, cy, radius, 0, Math.PI * 2); ctx.fill();
+
+    [-80, -70, -60].forEach((lat) => {
+      const p = projectPolar(lat, 0, cx, cy, radius);
+      const r = Math.hypot(p.x - cx, p.y - cy);
+      ctx.strokeStyle = GRID; ctx.lineWidth = 1; ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.stroke();
+      ctx.fillStyle = TEXT; ctx.font = '10px system-ui'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+      ctx.fillText(`${Math.abs(lat)}°S`, cx + 4, cy - r + 8);
+    });
+    for (let lon = 0; lon < 360; lon += 30) {
+      const p = projectPolar(-60, lon, cx, cy, radius);
+      ctx.strokeStyle = GRID; ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(p.x, p.y); ctx.stroke();
+      if (lon % 90 === 0) {
+        ctx.fillStyle = TEXT; ctx.font = '10px system-ui'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillText(`${lon}°`, p.x, p.y);
+      }
+    }
+
+    const markers = [];
+    sites.forEach((site) => {
+      if (site.lat > -60 || site.lat < -90) return;
+      const point = projectPolar(site.lat, site.lon, cx, cy, radius);
+      markers.push({ ...point, site });
+      ctx.beginPath(); ctx.arc(point.x, point.y, 3, 0, Math.PI * 2);
+      ctx.fillStyle = site.approx ? '#8290a8' : '#c6d3e8';
+      if (site.approx) { ctx.strokeStyle = '#8290a8'; ctx.lineWidth = 1.2; ctx.stroke(); }
+      else ctx.fill();
+    });
+    scenarios.forEach((scenario) => {
+      if (scenario.lat > -60 || scenario.lat < -90) return;
+      const point = projectPolar(scenario.lat, scenario.lon, cx, cy, radius);
+      ctx.beginPath(); ctx.arc(point.x, point.y, scenario.id === activeId ? 7 : 5, 0, Math.PI * 2);
+      ctx.strokeStyle = scenario.color; ctx.lineWidth = scenario.id === activeId ? 2 : 1.2; ctx.stroke();
+      ctx.beginPath(); ctx.arc(point.x, point.y, 3, 0, Math.PI * 2);
+      ctx.fillStyle = scenario.color; ctx.fill();
+    });
+    ctx.fillStyle = TEXT; ctx.font = '11px system-ui'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('90°S', cx, cy);
+    const geometry = { cx, cy, radius, markers };
+    canvas._polarGeometry = geometry;
+    return geometry;
+  }
+
   /** Landing-window finder. data = LunarEngine.landingWindows result. */
   function drawFinder(canvas, data, missionDays, hoverIdx) {
     const { ctx, w, h } = setup(canvas);
@@ -289,5 +352,10 @@
     }
   }
 
-  root.LunarCharts = { drawPanorama, drawDome, drawTimeline, drawLanes, drawFinder, SUN, EARTH, OK };
+  const api = {
+    drawPanorama, drawDome, drawTimeline, drawLanes, drawFinder, drawPolarMap,
+    projectPolar, unprojectPolar, SUN, EARTH, OK
+  };
+  root.LunarCharts = api;
+  if (typeof module === 'object' && module.exports) module.exports = api;
 })(typeof self !== 'undefined' ? self : this);
