@@ -1,12 +1,16 @@
 {
-  "name": "lunar-apex",
+  "name": "lunasight",
   "version": "1.0.0",
   "description": "Lunar Landing Site Navigator: compare Sun and Earth geometry, power and communication windows for lunar landing sites and dates.",
   "license": "MIT",
   "private": true,
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
-    "test": "node --test test/*.test.js",
-    "start": "node backend/server.js",
+    "check": "node --check frontend/js/app.js && node --check frontend/js/charts.js && node --check frontend/js/engine.js && node --check backend/server.mjs && node --check tools/import_sightline_horizons.js",
+    "test": "node --test test/engine.test.js && node --test test/ephemeris.test.mjs test/server.test.mjs",
+    "start": "node backend/server.mjs",
     "terrain:sync": "node tools/import_sightline_horizons.js"
   }
 }

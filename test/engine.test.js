@@ -1,8 +1,8 @@
 'use strict';
 const test = require('node:test');
 const assert = require('node:assert');
-const Astronomy = require('../vendor/astronomy.min.js');
-const LE = require('../js/engine.js');
+const Astronomy = require('../frontend/vendor/astronomy.min.js');
+const LE = require('../frontend/js/engine.js');
 
 const near = (a, b, tol, msg) => assert.ok(Math.abs(a - b) <= tol, `${msg || ''} expected ${b} ± ${tol}, got ${a}`);
 const store = new LE.FrameStore();

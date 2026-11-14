@@ -1,4 +1,4 @@
-/* Lunar Apex — canvas renderers (no dependencies). */
+/* LunaSight — canvas renderers (no dependencies). */
 (function (root) {
   'use strict';
   const SUN = '#ffd166', EARTH = '#4cc9f0', OK = '#52d273', GRID = '#1b2540', TEXT = '#93a0bb';
