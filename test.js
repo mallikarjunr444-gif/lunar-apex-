@@ -1,0 +1,13 @@
+import assert from "node:assert";
+import { SITES } from "./sites.js";
+import { series, summarize, elAz } from "./ephemeris.js";
+const get = (id) => SITES.find((s) => s.id === id);
+const start = new Date("2026-12-01T00:00:00Z");
+const run = (id) => summarize(series(get(id), start, 720));
+const eq = run("apollo11"), sh = run("shackleton"), far = run("change4"), mal = run("malapert");
+assert(eq.sun.percentUp > 42 && eq.sun.percentUp < 58, `equator sun% ${eq.sun.percentUp}`);
+assert(sh.sun.maxElevation < 3.5, `pole max el ${sh.sun.maxElevation}`);
+assert(far.earth.percentUp < 5, "far side should not see Earth");
+assert(mal.earth.percentUp > 60, `Malapert Earth% (expect 60-90) ${mal.earth.percentUp}`);
+assert(Math.abs(elAz({ lat: 10, lon: 20 }, { lat: 10, lon: 20 }).el - 90) < 1e-4);
+console.log("all tests passed", { equatorSun: eq.sun.percentUp, shackletonMaxEl: sh.sun.maxElevation, malapertEarth: mal.earth.percentUp, shackletonSun: sh.sun.percentUp });
