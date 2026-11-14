@@ -4,7 +4,10 @@
  * Entries marked approx:true are region centres (crater centres / announced targets) — good for
  * comparison, not for final design. Verify against Quickmap / Moon Trek before use.
  */
-window.LUNAR_SITES = [
+(function (root) {
+'use strict';
+
+const sites = [
   {
     group: 'South pole region',
     items: [
@@ -18,6 +21,14 @@ window.LUNAR_SITES = [
       { id: 'cabeus', name: 'Cabeus crater', lat: -84.9, lon: -35.5, approx: true },
       { id: 'amundsen', name: 'Amundsen crater', lat: -84.5, lon: 82.8, approx: true },
       { id: 'nobile', name: 'Nobile crater', lat: -85.2, lon: 53.5, approx: true }
+    ]
+  },
+  {
+    group: 'South pole LOLA terrain profiles',
+    items: [
+      { id: 'sightline-shackleton-rim', name: 'Shackleton Rim crest (LOLA)', lat: -89.780403, lon: -156.196951, h: 1.7391, terrainProfileId: 'sightline-shackleton-rim' },
+      { id: 'sightline-connecting-ridge', name: 'Connecting Ridge (LOLA)', lat: -89.463163, lon: -137.489553, h: 1.9448, terrainProfileId: 'sightline-connecting-ridge' },
+      { id: 'sightline-de-gerlache-rim', name: 'de Gerlache Rim (LOLA)', lat: -88.683418, lon: -67.9321, h: 1.7937, terrainProfileId: 'sightline-de-gerlache-rim' }
     ]
   },
   {
@@ -51,7 +62,12 @@ window.LUNAR_SITES = [
     ]
   }
 ];
-window.LUNAR_SITE_INDEX = {};
-window.LUNAR_SITES.forEach(function (g) {
-  g.items.forEach(function (s) { window.LUNAR_SITE_INDEX[s.id] = s; });
+const index = {};
+sites.forEach(function (g) {
+  g.items.forEach(function (s) { index[s.id] = s; });
 });
+
+root.LUNAR_SITES = sites;
+root.LUNAR_SITE_INDEX = index;
+if (typeof module === 'object' && module.exports) module.exports = { sites, index };
+}(typeof window !== 'undefined' ? window : globalThis));

@@ -112,3 +112,13 @@ test('horizon profile parser interpolates and wraps', () => {
   near(p[0], 2, 1e-6); near(p[45], 3, 1e-6); near(p[359], 4 + (2 - 4) * 89 / 90, 1e-3);   // wraps from (270,4) back to (0,2)
   assert.strictEqual(LE.parseHorizonProfile('nonsense'), null);
 });
+
+test('terrain profiles interpolate at their native resolution and preserve below-horizontal horizons', () => {
+  const profile = new Float32Array(1440).fill(-4);
+  profile[0] = 4;
+  const site = LE.makeSite({ lat: -89.7, lon: 12, h: 1.7, profile });
+  near(LE.maskAt(site, 0), 4, 1e-6);
+  near(LE.maskAt(site, 359.875), 0, 1e-5);
+  near(LE.maskAt(site, 90), -4, 1e-6);
+  near(LE.maskAt(LE.makeSite({ lat: -89.7, profile, maskDeg: 2 }), 90), 2, 1e-6);
+});

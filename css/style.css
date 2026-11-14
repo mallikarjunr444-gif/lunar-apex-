@@ -92,11 +92,18 @@ canvas { display: block; width: 100%; }
 .stats dt { color: var(--mute); font-size: 11px; text-transform: uppercase; letter-spacing: .05em; }
 .stats dd { margin: 0; font-size: 16px; font-weight: 600; font-variant-numeric: tabular-nums; }
 .stats dd small { color: var(--mute); font-weight: 400; font-size: 12px; }
+.site-resources { border-top: 1px solid var(--line); padding-top: 8px; display: grid; gap: 6px; }
+.site-resources .resource-coords, .horizons-result { color: var(--mute); font-size: 11px; }
+.resource-actions { display: flex; flex-wrap: wrap; gap: 5px; }
+.resource-actions .btn { font-size: 11px; padding: 4px 7px; text-decoration: none; }
+.horizons-result:empty { display: none; }
+.horizons-result[aria-busy="true"] { color: var(--accent); }
 
 .panel { border: 1px solid var(--line); border-radius: var(--r); background: var(--panel); padding: 14px; }
 .panel-h { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; flex-wrap: wrap; margin-bottom: 10px; }
 .panel h2 { font-size: 16px; }
 .sub { color: var(--mute); font-size: 12.5px; max-width: 70ch; margin-top: 2px; }
+#terrain-status.terrain-warning { color: var(--bad); }
 .chart-wrap { position: relative; }
 .chart.tl { height: 250px; cursor: crosshair; }
 .chart.lanes { height: 120px; cursor: crosshair; }
@@ -131,6 +138,18 @@ td .pass { color: var(--ok); } td .fail { color: var(--bad); }
 .tile .big { font-size: 26px; font-weight: 700; color: var(--sun); font-variant-numeric: tabular-nums; }
 .tile h3 { font-size: 13px; margin: 2px 0 4px; }
 .tile p { color: var(--mute); font-size: 12.5px; }
+.resource-tile { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
+.resource-tile .role { color: var(--earth); font-size: 11px; text-transform: uppercase; letter-spacing: .05em; }
+.resource-tile a { margin-top: auto; }
+.research-library { margin-top: 12px; border-top: 1px solid var(--line); padding-top: 10px; }
+.research-library summary { cursor: pointer; color: var(--text); }
+.research-library > .sub { margin: 8px 0; }
+.research-groups { display: grid; gap: 12px; margin-top: 10px; }
+.research-group h3 { color: var(--accent); font-size: 13px; margin-bottom: 6px; }
+.research-group ul { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 8px; }
+.research-group li { background: var(--bg2); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; min-width: 0; }
+.research-group p { color: var(--mute); font-size: 12px; }
+.research-group .review-note { color: var(--faint); font-size: 11px; margin-top: 4px; }
 
 footer { max-width: 1600px; margin: 0 auto; padding: 0 20px 28px; color: var(--mute); font-size: 12.5px; }
 footer details { border: 1px solid var(--line); border-radius: var(--r); padding: 10px 14px; background: var(--panel); margin-bottom: 10px; }

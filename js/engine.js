@@ -164,7 +164,7 @@
 
   /**
    * site: { lat, lon (deg, east +), h (km above reference sphere, default 0),
-   *         maskDeg (uniform terrain mask), profile (array of 360 elevations, az 0..359) }
+   *         maskDeg (uniform terrain mask), profile (full-circle elevation samples, az 0..360) }
    */
   function makeSite(s) {
     const lat = Math.max(-90, Math.min(90, Number(s.lat) || 0));
@@ -183,12 +183,13 @@
   }
 
   function maskAt(site, az) {
-    let m = site.maskDeg || 0;
+    const uniformMask = site.maskDeg || 0;
+    let m = uniformMask;
     const p = site.profile;
-    if (p && p.length === 360) {
-      const x = norm360(az), i = Math.floor(x), w = x - i;
-      const a = p[i % 360], b = p[(i + 1) % 360];
-      m = Math.max(m, a + (b - a) * w);
+    if (p && p.length >= 2) {
+      const x = norm360(az) * p.length / 360, i = Math.floor(x), w = x - i;
+      const elevation = p[i % p.length] + (p[(i + 1) % p.length] - p[i % p.length]) * w;
+      m = uniformMask === 0 ? elevation : Math.max(uniformMask, elevation);
     }
     return m;
   }

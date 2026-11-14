@@ -14,7 +14,7 @@
     scenarios: [], windowDays: 30, missionDays: 7,
     opts: { sunLimb: true, minSunElev: 0, minEarthElev: 0 },
     view: 'panorama', yMode: 'zoom', offsetMs: 0, playing: false,
-    finderId: null, finderDays: 365
+    finderId: null, finderDays: 365, terrainProfiles: []
   };
 
   // ------------------------------------------------------------ formatting
@@ -38,18 +38,29 @@
 
   // -------------------------------------------------------------- scenarios
   function pickColor() { const used = state.scenarios.map((s) => s.color); return COLORS.find((c) => used.indexOf(c) < 0) || COLORS[0]; }
+  function terrainProfileFor(site) {
+    return site && site.terrainProfileId
+      ? state.terrainProfiles.find((profile) => profile.id === site.terrainProfileId) || null
+      : null;
+  }
+  function profileLabel(profile) {
+    return profile ? `SIGHTLINE LOLA horizon · ${profile.mastHeightM} m mast` : '';
+  }
   function newScenario(siteId, tMs, over) {
     const s = window.LUNAR_SITE_INDEX[siteId];
+    const terrain = terrainProfileFor(s);
     return Object.assign({
       id: uid++, siteId: siteId, name: s ? s.name : 'Custom site', autoName: true,
-      lat: s ? s.lat : 0, lon: s ? s.lon : 0, tMs: tMs, maskDeg: 0,
-      profile: null, profileName: '', profileId: 0, color: pickColor()
+      lat: s ? s.lat : 0, lon: s ? s.lon : 0, h: s ? (s.h || 0) : 0, tMs: tMs, maskDeg: 0,
+      profile: terrain ? Float32Array.from(terrain.horizonElevationDeg) : null,
+      profileName: profileLabel(terrain), profileId: terrain ? 1 : 0, color: pickColor()
     }, over || {});
   }
   const byId = (id) => state.scenarios.find((s) => s.id === Number(id));
-  const siteOf = (sc) => LE.makeSite({ lat: sc.lat, lon: sc.lon, maskDeg: sc.maskDeg, profile: sc.profile });
+  const siteOf = (sc) => LE.makeSite({ lat: sc.lat, lon: sc.lon, h: sc.h, maskDeg: sc.maskDeg, profile: sc.profile });
+  const horizonsKey = (sc) => `${sc.lat}|${sc.lon}|${sc.h}|${sc.tMs + state.offsetMs}`;
   const optKey = () => `${state.opts.sunLimb ? 1 : 0}|${state.opts.minSunElev}|${state.opts.minEarthElev}`;
-  const siteKey = (sc) => `${sc.lat}|${sc.lon}|${sc.maskDeg}|${sc.profileId}|${optKey()}`;
+  const siteKey = (sc) => `${sc.lat}|${sc.lon}|${sc.h}|${sc.maskDeg}|${sc.profileId}|${optKey()}`;
 
   // ------------------------------------------------------- derived (cached)
   const cache = new Map();
@@ -124,6 +135,16 @@
       <canvas class="sky" aria-label="Sun and Earth positions relative to the horizon"></canvas>
       <div class="chips"></div>
       <dl class="stats"></dl>
+      <div class="site-resources">
+        <div class="resource-coords">Map coordinates: ${sc.lat.toFixed(4)}° N+, ${sc.lon.toFixed(4)}° E+</div>
+        <div class="resource-actions">
+          <a class="btn small" href="https://quickmap.lroc.asu.edu/" target="_blank" rel="noopener">QuickMap</a>
+          <a class="btn small" href="https://trek.nasa.gov/moon/" target="_blank" rel="noopener">Moon Trek</a>
+          <button class="btn small" data-act="copy-coordinates">Copy coordinates</button>
+          <button class="btn small" data-act="horizons">Check with JPL Horizons</button>
+        </div>
+        <output class="horizons-result" aria-live="polite"></output>
+      </div>
     </article>`;
   }
 
@@ -141,6 +162,18 @@
     state.scenarios.forEach((sc) => {
       const el = document.querySelector(`.card[data-id="${sc.id}"]`);
       if (!el) return;
+      const horizonsResult = el.querySelector('.horizons-result');
+      const key = horizonsKey(sc);
+      if (horizonsResult.dataset.resultKey && horizonsResult.dataset.resultKey !== key) {
+        horizonsResult.textContent = '';
+        delete horizonsResult.dataset.resultKey;
+      }
+      if (horizonsResult.dataset.requestKey && horizonsResult.dataset.requestKey !== key) {
+        delete horizonsResult.dataset.requestKey;
+        horizonsResult.removeAttribute('aria-busy');
+        horizonsResult.textContent = '';
+        el.querySelector('[data-act="horizons"]').disabled = false;
+      }
       const d = derived(sc);
       const td = sc.tMs + state.offsetMs;
       const ev = LE.evalSite(d.site, store.at(td), state.opts);
@@ -288,6 +321,71 @@
     $('tiles').innerHTML = tiles.map((x) => `<div class="tile"><div class="big">${x[0]}</div><h3>${x[1]}</h3><p>${x[2]}</p></div>`).join('');
   }
 
+  function renderResources() {
+    $('resource-tiles').innerHTML = window.LUNAR_RESOURCES.map((resource) =>
+      `<article class="tile resource-tile">
+        <span class="role">${esc(resource.role)}</span>
+        <h3>${esc(resource.name)}</h3>
+        <p>${esc(resource.summary)}</p>
+        <a href="${esc(resource.url)}" target="_blank" rel="noopener">Open ${esc(resource.name)} ↗</a>
+      </article>`
+    ).join('');
+    $('research-groups').innerHTML = window.LUNAR_RESEARCH_GROUPS.map((group) =>
+      `<section class="research-group">
+        <h3>${esc(group.title)}</h3>
+        <ul>${group.items.map((item) =>
+          `<li>
+            <a href="${esc(item.url)}" target="_blank" rel="noopener">${esc(item.name)} ↗</a>
+            <p>${esc(item.summary)}</p>
+            ${item.status ? `<p class="review-note">${esc(item.status)}</p>` : ''}
+          </li>`
+        ).join('')}</ul>
+      </section>`
+    ).join('');
+  }
+
+  async function checkHorizons(sc, card, button) {
+    const output = card.querySelector('.horizons-result');
+    const key = horizonsKey(sc);
+    const date = new Date(sc.tMs + state.offsetMs).toISOString();
+    button.disabled = true;
+    output.dataset.requestKey = key;
+    output.setAttribute('aria-busy', 'true');
+    output.textContent = 'Requesting an independent JPL Horizons ephemeris…';
+    try {
+      const response = await fetch('/api/horizons/compare', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          scenario: {
+            id: String(sc.id), name: sc.name, lat: sc.lat, lon: sc.lon,
+            date, h: sc.h, maskDeg: sc.maskDeg
+          }
+        })
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error && result.error.message || 'Horizons request failed.');
+      if (output.dataset.requestKey !== key) return;
+      const fmt = (value) => {
+        const signed = (number) => `${number >= 0 ? '+' : ''}${number.toFixed(2)}°`;
+        return `elev ${value.local.altitudeDeg.toFixed(2)}° / ${value.horizons.altitudeDeg.toFixed(2)}° (Δ ${signed(value.differenceDeg.altitude)}), az ${value.local.azimuthDeg.toFixed(2)}° / ${value.horizons.azimuthDeg.toFixed(2)}° (Δ ${signed(value.differenceDeg.azimuth)})`;
+      };
+      output.textContent = `${result.source} · ${result.date}. Sun: ${fmt(result.positions.sun)}; Earth: ${fmt(result.positions.earth)}. Values are local model / Horizons.`;
+      output.dataset.resultKey = key;
+    } catch (error) {
+      if (output.dataset.requestKey === key) {
+        output.textContent = `JPL Horizons comparison unavailable: ${error.message}`;
+        output.dataset.resultKey = key;
+      }
+    } finally {
+      if (output.dataset.requestKey === key) {
+        delete output.dataset.requestKey;
+        output.removeAttribute('aria-busy');
+        button.disabled = false;
+      }
+    }
+  }
+
   // -------------------------------------------------------------- hash I/O
   function saveHash() {
     try {
@@ -332,7 +430,7 @@
     el.querySelector('.f-lat').value = sc.lat; el.querySelector('.f-lon').value = sc.lon;
     el.querySelector('.f-site').value = sc.siteId;
     el.querySelector('.f-date').value = dateStr(sc.tMs); el.querySelector('.f-time').value = timeStr(sc.tMs);
-    el.querySelector('.f-name').value = sc.name;
+    el.querySelector('.f-name').value = sc.name; el.querySelector('.f-mask').value = sc.maskDeg;
     el.querySelector('.pname').innerHTML = sc.profileName ? `${esc(sc.profileName)} <button class="pclear" data-act="clearp">remove</button>` : '';
   }
   function syncFinderSelect() {
@@ -350,6 +448,8 @@
         const v = parseFloat(t.value); if (!isFinite(v)) return;
         if (t.classList.contains('f-lat')) sc.lat = clamp(v, -90, 90); else sc.lon = normLon(v);
         sc.siteId = 'custom'; el.querySelector('.f-site').value = 'custom';
+        sc.h = 0; sc.profile = null; sc.profileName = ''; sc.profileId++;
+        el.querySelector('.pname').textContent = '';
         if (sc.autoName) { sc.name = `Custom ${sc.lat.toFixed(2)}°, ${sc.lon.toFixed(2)}°`; el.querySelector('.f-name').value = sc.name; syncFinderSelect(); }
         refresh(); return;
       }
@@ -361,7 +461,14 @@
       if (t.classList.contains('f-site')) {
         const s = window.LUNAR_SITE_INDEX[t.value];
         sc.siteId = t.value;
-        if (s) { sc.lat = s.lat; sc.lon = s.lon; if (sc.autoName) sc.name = s.name; }
+        if (s) {
+          sc.lat = s.lat; sc.lon = s.lon;
+          if (sc.autoName) sc.name = s.name;
+        }
+        const terrain = terrainProfileFor(s);
+        sc.h = s ? (s.h || 0) : 0;
+        sc.profile = terrain ? Float32Array.from(terrain.horizonElevationDeg) : null;
+        sc.profileName = profileLabel(terrain); sc.profileId++;
         syncInputs(sc); syncFinderSelect(); refresh(); return;
       }
       if (t.classList.contains('f-date') || t.classList.contains('f-time')) {
@@ -383,6 +490,13 @@
       const b = e.target.closest('button'); if (!b) return;
       const el = b.closest('.card'); if (!el) return;
       const sc = byId(el.dataset.id);
+      if (b.dataset.act === 'horizons') { checkHorizons(sc, el, b); return; }
+      if (b.dataset.act === 'copy-coordinates') {
+        const coordinates = `${sc.lat.toFixed(6)}, ${sc.lon.toFixed(6)}`;
+        if (navigator.clipboard) navigator.clipboard.writeText(coordinates).catch(() => window.prompt('Copy lunar latitude, longitude:', coordinates));
+        else window.prompt('Copy lunar latitude, longitude:', coordinates);
+        return;
+      }
       if (b.dataset.nudge) { sc.tMs += Number(b.dataset.nudge); syncInputs(sc); refresh(); return; }
       if (b.dataset.act === 'clearp') { sc.profile = null; sc.profileName = ''; sc.profileId++; syncInputs(sc); refresh(); return; }
       if (b.dataset.act === 'rm') {
@@ -495,17 +609,36 @@
   }
 
   // ------------------------------------------------------------------ init
-  function init() {
+  async function init() {
+    try {
+      const response = await fetch('/api/terrain/profiles');
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const catalog = await response.json();
+      if (catalog.schemaVersion !== 1 || !Array.isArray(catalog.profiles)
+          || catalog.profiles.some((profile) => !profile || typeof profile.id !== 'string'
+            || !Array.isArray(profile.horizonElevationDeg)
+            || profile.horizonElevationDeg.length !== catalog.sampling.azimuthSamples
+            || profile.horizonElevationDeg.some((value) => !Number.isFinite(value)))) {
+        throw new Error('Invalid terrain profile catalog');
+      }
+      state.terrainProfiles = catalog.profiles;
+      $('terrain-status-text').textContent = `LOLA horizons ready: ${catalog.profiles.length} sites, ${catalog.sampling.azimuthStepDeg}° bearings, ${catalog.sampling.mastHeightM} m mast.`;
+      $('terrain-status').classList.remove('terrain-warning');
+    } catch (error) {
+      $('terrain-status-text').textContent = 'LOLA terrain profiles could not be loaded; terrain-preset sites will use the smooth-horizon fallback.';
+      $('terrain-status').classList.add('terrain-warning');
+      console.error('Terrain profiles unavailable:', error);
+    }
     if (!loadHash()) {
       const t0 = Math.floor(Date.now() / HOUR) * HOUR;
       state.scenarios = [];
-      ['shackleton', 'malapert', 'im1'].forEach((id) => state.scenarios.push(newScenario(id, t0)));
+      ['sightline-shackleton-rim', 'malapert', 'im1'].forEach((id) => state.scenarios.push(newScenario(id, t0)));
     }
     $('win').value = String(state.windowDays);
     $('missionDays').value = state.missionDays; $('minSun').value = state.opts.minSunElev; $('minEarth').value = state.opts.minEarthElev;
     $('limb').checked = state.opts.sunLimb;
     markSeg('view-btns', 'view', state.view); markSeg('y-btns', 'y', state.yMode);
-    bind(); renderCards(); refresh();
+    bind(); renderResources(); renderCards(); refresh();
   }
 
   window.__lunar = { state, store, refresh, derived, LE };   // handy for debugging in the console

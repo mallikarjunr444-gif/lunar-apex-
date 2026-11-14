@@ -4,10 +4,8 @@
  *   node tools/compare_horizons.js <lat> <lon_east> "<YYYY-MM-DD HH:MM>" [hours=48] [stepMin=360]
  * Example: node tools/compare_horizons.js -89.9 0 "2027-03-01 00:00" 48 360
  *
- * NOTE: written against the documented Horizons API; it could not be run in the sandbox where
- * this project was built (no access to ssd.jpl.nasa.gov), so treat the first run as a test.
- * Expect agreement to a few hundredths of a degree (Horizons applies light-time; the engine
- * uses a spherical Moon and Meeus libration).
+ * This is a comparison aid, not a validation guarantee: Horizons and the local model use
+ * different ephemerides and physical approximations.
  */
 'use strict';
 const LE = require('../js/engine.js');

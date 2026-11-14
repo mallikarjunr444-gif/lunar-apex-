@@ -139,6 +139,22 @@
     <div class="panel-h"><div><h2>Why the Moon is a different problem</h2><p class="sub">The same Sun, but nothing like Earth daylight.</p></div></div>
     <div class="tiles" id="tiles"></div>
   </section>
+
+  <section class="panel" id="resources-panel">
+    <div class="panel-h">
+      <div>
+        <h2>Mission data &amp; learning resources</h2>
+        <p class="sub">Use the selected coordinates with lunar terrain tools, compare a touchdown against JPL’s live ephemeris, and explore mission context from CSA.</p>
+        <p class="sub" id="terrain-status"><span id="terrain-status-text">Loading LOLA terrain horizons…</span> <a href="https://github.com/WarRinOP/sightline" target="_blank" rel="noopener">SIGHTLINE source</a>.</p>
+      </div>
+    </div>
+    <div class="tiles" id="resource-tiles"></div>
+    <details class="research-library">
+      <summary>Complete resource library and project review · checked 2026-11-14</summary>
+      <p class="sub">These links are references, not software dependencies. No external project code has been cloned or imported. Recheck repository licenses, dependencies, and CI before adopting code.</p>
+      <div id="research-groups" class="research-groups"></div>
+    </details>
+  </section>
 </main>
 
 <footer>
@@ -147,7 +163,7 @@
     <ul>
       <li><b>Ephemeris:</b> Moon and Sun positions from <a href="https://github.com/cosinekitty/astronomy" target="_blank" rel="noopener">Astronomy Engine</a> (MIT). Libration and sub-solar point follow Meeus, <i>Astronomical Algorithms</i> ch. 53 (optical + physical libration) in the Mean-Earth/Polar-axis frame used by LOLA, Quickmap and Moon Trek.</li>
       <li><b>Geometry:</b> spherical Moon (R = 1737.4 km); Earth lunar-parallax (up to 0.26°) is included. No atmosphere, so no refraction and no twilight. Times are UTC.</li>
-      <li><b>Terrain:</b> by default the horizon is the smooth-sphere horizon. Use the <i>terrain mask</i> (uniform angle) or import a horizon profile (CSV: azimuth°, elevation°) derived from LOLA through Quickmap / Moon Trek for real topography. Polar results with no mask are optimistic.</li>
+      <li><b>Terrain:</b> three south-pole site presets include SIGHTLINE-published horizons derived from LOLA: 5 m local samples to 12 km plus 80 m regional samples to 300 km, at 0.25° azimuth spacing and a 2 m mast. Terrain beyond the source DEM coverage is omitted, so those masks are lower bounds. Other sites use a smooth-sphere horizon unless you import a profile (CSV: azimuth°, elevation°) or set a uniform terrain mask.</li>
       <li><b>Rules:</b> Sun “up” = upper limb (or centre) above the horizon + minimum elevation; Earth “in view” = centre above the horizon + minimum elevation. Event times are refined to seconds; events shorter than ~15 min can be missed.</li>
       <li><b>Not modelled:</b> Earth/Sun eclipses of the site, antenna/pointing limits, dust, thermal limits, site tilt, and the Earth-disc size in link budgets.</li>
     </ul>
@@ -165,6 +181,7 @@
 <script src="vendor/astronomy.browser.min.js"></script>
 <script src="js/engine.js"></script>
 <script src="js/sites.js"></script>
+<script src="js/resources.js"></script>
 <script src="js/charts.js"></script>
 <script src="js/app.js"></script>
 </body>
