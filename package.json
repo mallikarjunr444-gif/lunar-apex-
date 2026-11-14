@@ -1,0 +1,11 @@
+{
+  "name": "lunar-apex",
+  "version": "1.0.0",
+  "description": "Lunar Landing Site Navigator: compare Sun and Earth geometry, power and communication windows for lunar landing sites and dates.",
+  "license": "MIT",
+  "private": true,
+  "scripts": {
+    "test": "node --test test/engine.test.js",
+    "start": "python3 -m http.server 8080"
+  }
+}

@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Lunar Apex — Landing Site Navigator</title>
+  <meta name="description" content="Compare lunar landing sites and dates in seconds: Sun and Earth positions relative to the horizon, power and direct-to-Earth communication windows.">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='14' fill='%23c9ced6'/%3E%3Ccircle cx='11' cy='12' r='3' fill='%238b919c'/%3E%3Ccircle cx='21' cy='20' r='4' fill='%238b919c'/%3E%3Ccircle cx='24' cy='9' r='2.5' fill='%23ffd166'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<header class="top">
+  <div class="brand">
+    <svg viewBox="0 0 32 32" width="30" height="30" aria-hidden="true"><circle cx="16" cy="16" r="14" fill="#c9ced6"/><circle cx="11" cy="12" r="3" fill="#8b919c"/><circle cx="21" cy="20" r="4" fill="#8b919c"/><circle cx="24" cy="9" r="2.5" fill="#ffd166"/></svg>
+    <div>
+      <h1>Lunar Apex</h1>
+      <p>Landing Site Navigator · Sun &amp; Earth from any point on the Moon</p>
+    </div>
+  </div>
+  <div class="top-actions">
+    <button id="btn-share" class="btn" title="Copy a link to this exact comparison">Copy link</button>
+    <button id="btn-help" class="btn ghost" aria-expanded="false" aria-controls="help">How to read this</button>
+  </div>
+</header>
+
+<section id="help" class="help" hidden>
+  <div class="help-grid">
+    <div><h3>1 · Pick scenarios</h3><p>Each card is one <b>site + date</b>. Choose a mission or crater from the list, or type any coordinates. Duplicate a card and nudge its date to see what a launch slip does at the <i>same</i> site.</p></div>
+    <div><h3>2 · Read the sky</h3><p>The sky strip shows where the <b style="color:#ffd166">Sun</b> and <b style="color:#4cc9f0">Earth</b> are relative to the horizon (azimuth across, elevation up). Hollow discs are below the horizon. Dark grey is your terrain mask.</p></div>
+    <div><h3>3 · Compare windows</h3><p>The timeline is measured in days after touchdown (T+). Lanes show when each site has power (Sun), a direct link (Earth) and both. The table ranks scenarios; green marks the best value in each row.</p></div>
+    <div><h3>4 · Find a date</h3><p>The landing-window finder scans up to a year of touchdown dates and shows how long sunlight and Earth contact last afterwards, so you can see which dates satisfy your mission length.</p></div>
+  </div>
+</section>
+
+<main>
+  <section class="bar" aria-label="Global controls">
+    <div class="group">
+      <span class="lbl">Shift all dates</span>
+      <div class="seg" id="shift-btns">
+        <button data-shift="-30d">−30 d</button><button data-shift="-7d">−7 d</button><button data-shift="-1d">−1 d</button><button data-shift="-1h">−1 h</button>
+        <button data-shift="1h">+1 h</button><button data-shift="1d">+1 d</button><button data-shift="7d">+7 d</button><button data-shift="30d">+30 d</button>
+      </div>
+      <button id="btn-now" class="btn small">Now</button>
+      <button id="btn-sync" class="btn small" title="Set every scenario to the first scenario's date">Sync to first</button>
+    </div>
+    <div class="group">
+      <label>Window
+        <select id="win">
+          <option value="3">3 days</option><option value="7">7 days</option><option value="15">15 days</option>
+          <option value="30" selected>30 days</option><option value="60">60 days</option>
+        </select>
+      </label>
+      <label title="How long must the mission operate after touchdown?">Mission length
+        <input id="missionDays" type="number" min="1" max="60" step="0.5" value="7"> d
+      </label>
+      <label title="Sun counts as 'up' only above this elevation over the local horizon (negative = allow grazing light).">Min Sun elev
+        <input id="minSun" type="number" min="-2" max="20" step="0.1" value="0"> °
+      </label>
+      <label title="Earth must be at least this high above the local horizon for a direct link.">Min Earth elev
+        <input id="minEarth" type="number" min="-2" max="30" step="0.1" value="0"> °
+      </label>
+      <label class="chk" title="Sunrise/sunset when the Sun's upper limb crosses the horizon (the usual convention). Off = centre of the disc.">
+        <input id="limb" type="checkbox" checked> Upper-limb rule
+      </label>
+    </div>
+    <div class="group">
+      <div class="seg" id="view-btns" title="Sky view">
+        <button data-view="panorama" class="on">Panorama</button><button data-view="dome">Dome</button>
+      </div>
+      <button id="btn-add" class="btn primary">+ Add scenario</button>
+    </div>
+  </section>
+
+  <section id="cards" class="cards" aria-live="polite"></section>
+
+  <section class="panel" id="timeline-panel">
+    <div class="panel-h">
+      <div>
+        <h2>Timeline since touchdown</h2>
+        <p class="sub">Solid = Sun elevation, dashed = Earth elevation. Drag across the chart to move the clock; every sky view above follows it.</p>
+      </div>
+      <div class="seg" id="y-btns" title="Vertical scale">
+        <button data-y="zoom" class="on">Horizon zoom ±10°</button><button data-y="full">Full ±90°</button>
+      </div>
+    </div>
+    <div class="chart-wrap"><canvas id="tl" class="chart tl"></canvas></div>
+    <div class="chart-wrap"><canvas id="lanes" class="chart lanes"></canvas></div>
+    <div class="legend" id="lane-legend">
+      <span><i class="sw" style="background:#ffd166"></i>Power (Sun up)</span>
+      <span><i class="sw" style="background:#4cc9f0"></i>Direct-to-Earth link</span>
+      <span><i class="sw" style="background:#52d273"></i>Both</span>
+    </div>
+    <div class="clock">
+      <button id="btn-play" class="btn primary" aria-label="Play or pause">▶ Play</button>
+      <button id="btn-reset" class="btn" title="Back to touchdown">T+0</button>
+      <input id="clock" type="range" min="0" max="1000" value="0" aria-label="Mission clock">
+      <span id="clock-lbl" class="mono">T+0.0 d</span>
+      <label>Speed
+        <select id="speed">
+          <option value="3600000">1 h / s</option><option value="21600000" selected>6 h / s</option>
+          <option value="86400000">1 d / s</option><option value="259200000">3 d / s</option>
+        </select>
+      </label>
+    </div>
+  </section>
+
+  <section class="panel" id="table-panel">
+    <div class="panel-h">
+      <div>
+        <h2>Side-by-side comparison</h2>
+        <p class="sub" id="table-sub"></p>
+      </div>
+    </div>
+    <div class="table-wrap"><table id="cmp"></table></div>
+  </section>
+
+  <section class="panel" id="finder-panel">
+    <div class="panel-h">
+      <div>
+        <h2>Landing-window finder</h2>
+        <p class="sub">If you touch down at this site on each date, how long do sunlight and Earth contact last <i>without interruption</i>? Use it when the schedule slips.</p>
+      </div>
+      <div class="finder-ctl">
+        <label>Scenario <select id="finder-sc"></select></label>
+        <label>Scan <select id="finder-days"><option value="90">90 days</option><option value="180">180 days</option><option value="365" selected>1 year</option></select></label>
+      </div>
+    </div>
+    <div class="chart-wrap"><canvas id="finder" class="chart finder"></canvas></div>
+    <div class="legend">
+      <span><i class="sw" style="background:#ffd166"></i>Continuous sunlight</span>
+      <span><i class="sw" style="background:#4cc9f0"></i>Continuous Earth contact</span>
+      <span><i class="sw" style="background:#52d273"></i>Both together</span>
+      <span><i class="sw line"></i>Mission length</span>
+    </div>
+    <div id="finder-out" class="finder-out"></div>
+  </section>
+
+  <section class="panel" id="learn">
+    <div class="panel-h"><div><h2>Why the Moon is a different problem</h2><p class="sub">The same Sun, but nothing like Earth daylight.</p></div></div>
+    <div class="tiles" id="tiles"></div>
+  </section>
+</main>
+
+<footer>
+  <details>
+    <summary>Method, accuracy and limits</summary>
+    <ul>
+      <li><b>Ephemeris:</b> Moon and Sun positions from <a href="https://github.com/cosinekitty/astronomy" target="_blank" rel="noopener">Astronomy Engine</a> (MIT). Libration and sub-solar point follow Meeus, <i>Astronomical Algorithms</i> ch. 53 (optical + physical libration) in the Mean-Earth/Polar-axis frame used by LOLA, Quickmap and Moon Trek.</li>
+      <li><b>Geometry:</b> spherical Moon (R = 1737.4 km); Earth lunar-parallax (up to 0.26°) is included. No atmosphere, so no refraction and no twilight. Times are UTC.</li>
+      <li><b>Terrain:</b> by default the horizon is the smooth-sphere horizon. Use the <i>terrain mask</i> (uniform angle) or import a horizon profile (CSV: azimuth°, elevation°) derived from LOLA through Quickmap / Moon Trek for real topography. Polar results with no mask are optimistic.</li>
+      <li><b>Rules:</b> Sun “up” = upper limb (or centre) above the horizon + minimum elevation; Earth “in view” = centre above the horizon + minimum elevation. Event times are refined to seconds; events shorter than ~15 min can be missed.</li>
+      <li><b>Not modelled:</b> Earth/Sun eclipses of the site, antenna/pointing limits, dust, thermal limits, site tilt, and the Earth-disc size in link budgets.</li>
+    </ul>
+  </details>
+  <p class="res">
+    Data &amp; resources:
+    <a href="https://quickmap.lroc.asu.edu/" target="_blank" rel="noopener">Quickmap</a> ·
+    <a href="https://trek.nasa.gov/moon/" target="_blank" rel="noopener">Moon Trek</a> ·
+    <a href="https://ssd.jpl.nasa.gov/horizons/" target="_blank" rel="noopener">JPL Horizons</a> ·
+    <a href="https://www.asc-csa.gc.ca/eng/astronomy/moon-exploration/" target="_blank" rel="noopener">CSA Moon Exploration</a>.
+    NASA does not endorse any non-U.S. Government entity.
+  </p>
+</footer>
+
+<script src="vendor/astronomy.browser.min.js"></script>
+<script src="js/engine.js"></script>
+<script src="js/sites.js"></script>
+<script src="js/charts.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
