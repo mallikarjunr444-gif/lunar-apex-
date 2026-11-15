@@ -1,6 +1,7 @@
 import http from "node:http";
 import fs from "node:fs";
 import path from "node:path";
+import zlib from "node:zlib";
 import { fileURLToPath } from "node:url";
 import { SITES } from "./sites.mjs";
 import { assess, elAz, series, subPoints, summarize, toJD } from "./ephemeris.mjs";
@@ -53,13 +54,26 @@ const headers = { "X-Content-Type-Options": "nosniff", "Referrer-Policy": "stric
 const cache = new Map();
 const clamp = (value, min, max, fallback) => Math.min(Math.max(Number.isFinite(+value) && value !== null && value !== "" ? +value : fallback, min), max);
 
-function json(res, code, body) {
-  res.writeHead(code, {
-    ...headers, "Content-Type": "application/json; charset=utf-8",
-    "Cache-Control": "no-store", "Access-Control-Allow-Origin": "*"
-  });
-  if (res.req.method === "HEAD") res.end();
-  else res.end(JSON.stringify(body));
+function json(res, code, body, req) {
+  const payload = JSON.stringify(body);
+  const acceptEncoding = (req || res.req) && ((req || res.req).headers["accept-encoding"] || "");
+  if (acceptEncoding.includes("gzip")) {
+    const compressed = zlib.gzipSync(Buffer.from(payload, "utf8"));
+    res.writeHead(code, {
+      ...headers, "Content-Type": "application/json; charset=utf-8",
+      "Cache-Control": "no-store", "Access-Control-Allow-Origin": "*",
+      "Content-Encoding": "gzip"
+    });
+    if ((req || res.req).method === "HEAD") res.end();
+    else res.end(compressed);
+  } else {
+    res.writeHead(code, {
+      ...headers, "Content-Type": "application/json; charset=utf-8",
+      "Cache-Control": "no-store", "Access-Control-Allow-Origin": "*"
+    });
+    if ((req || res.req).method === "HEAD") res.end();
+    else res.end(payload);
+  }
 }
 
 async function readJson(req) {
@@ -171,8 +185,36 @@ async function api(req, res, url) {
     res.writeHead(405, { ...headers, Allow: "GET, HEAD, POST" });
     return res.end("Method not allowed");
   }
-  if (url.pathname === "/api/health") return json(res, 200, { ok: true, uptimeSeconds: Math.floor((Date.now() - startedAt) / 1000), nasaKeyConfigured: NASA_API_KEY !== "DEMO_KEY" });
-  if (url.pathname === "/api/sites") return json(res, 200, SITES);
+  if (url.pathname === "/api/health") return json(res, 200, { ok: true, uptimeSeconds: Math.floor((Date.now() - startedAt) / 1000), nasaKeyConfigured: NASA_API_KEY !== "DEMO_KEY" }, req);
+  if (url.pathname === "/api/lunar-phase") {
+    const SYNODIC = 29.530589;
+    const JD_NEW_MOON = 2451550.1;
+    const jd = toJD(new Date());
+    const sp = subPoints(jd);
+    const ageDays = (((jd - JD_NEW_MOON) % SYNODIC) + SYNODIC) % SYNODIC;
+    const frac = ageDays / SYNODIC;
+    // phase angle: 0=new, 180=full
+    const phaseAngle = frac * 360;
+    const illuminationFraction = (1 - Math.cos(phaseAngle * Math.PI / 180)) / 2;
+    const octant = Math.floor(frac * 8);
+    const phaseNames = ["New Moon", "Waxing Crescent", "First Quarter", "Waxing Gibbous", "Full Moon", "Waning Gibbous", "Last Quarter", "Waning Crescent"];
+    const phaseName = phaseNames[octant % 8];
+    // next new moon: advance to next full cycle from known new moon reference
+    const nextNewMoonJD = JD_NEW_MOON + Math.ceil((jd - JD_NEW_MOON) / SYNODIC) * SYNODIC;
+    const nextFullMoonJD = JD_NEW_MOON + (Math.floor((jd - JD_NEW_MOON) / SYNODIC) + 0.5) * SYNODIC;
+    const jdToDate = (j) => new Date((j - 2440587.5) * 86400000);
+    const nextNewMoon = (nextNewMoonJD > jd ? jdToDate(nextNewMoonJD) : jdToDate(nextNewMoonJD + SYNODIC)).toISOString();
+    const nextFullMoon = (nextFullMoonJD > jd ? jdToDate(nextFullMoonJD) : jdToDate(nextFullMoonJD + SYNODIC)).toISOString();
+    return json(res, 200, { phaseAngle, illuminationFraction, ageDays, phaseName, nextNewMoon, nextFullMoon }, req);
+  }
+  if (url.pathname.startsWith("/api/sites/")) {
+    const id = url.pathname.slice("/api/sites/".length);
+    const site = SITES.find((s) => s.id === id);
+    if (!site) return json(res, 404, { error: `Site '${id}' not found` }, req);
+    return json(res, 200, site, req);
+  }
+  if (url.pathname === "/api/stats") return json(res, 200, { uptime: Math.floor((Date.now() - startedAt) / 1000), cacheSize: cache.size, sites: SITES.length, version: "2.0.0" }, req);
+  if (url.pathname === "/api/sites") return json(res, 200, SITES, req);
   if (url.pathname === "/api/resources") return json(res, 200, RESOURCES);
   if (url.pathname === "/api/evidence") return json(res, 200, EVIDENCE);
   if (url.pathname === "/api/terrain/profiles") return json(res, 200, TERRAIN);
