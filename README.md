@@ -177,3 +177,14 @@ LunaSight is an independent implementation. It does not vendor or combine the re
 - [LightPath](https://github.com/AnmolGarg8/LightPath) — MIT; SPICE geometry and rover-planning reference workflows.
 
 Scientific data sources remain the NASA/JPL resources listed above. External project code and assets are not copied into this repository.
+
+## Hosting (frontend + backend)
+
+The repo is deploy-ready on Vercel: `frontend/` is served statically and `api/index.mjs` runs the same Node server behind `/api/*` (see `vercel.json`).
+
+1. Go to https://vercel.com/new and import `mallikarjunr444-gif/lunar-apex-`.
+2. Leave the defaults (no build command; `vercel.json` sets the output directory and function).
+3. Optional env var: `NASA_API_KEY` (otherwise `DEMO_KEY`, which is rate limited).
+4. Every push to `main` then redeploys automatically.
+
+Any Node >= 20 host also works: `npm start` serves both the UI and the API on `$PORT`.
