@@ -1,6 +1,7 @@
 /* LunaSight — lunar landing site evaluation application */
 (function () {
   'use strict';
+  const API = String(window.LUNASIGHT_API_BASE || '').replace(/\/+$/, '');   // '' = same origin; set in js/config.js to use a separate backend
   const LE = window.LunarEngine, CH = window.LunarCharts;
   const { MIN, HOUR, DAY } = LE;
   const COLORS = ['#4cc9f0', '#f72585', '#b5e48c', '#ff9f1c', '#c77dff', '#80ed99'];
@@ -78,7 +79,7 @@
   async function loadMissionCatalog() {
     const output = $('mission-catalog-status');
     try {
-      const response = await fetch('/api/sites');
+      const response = await fetch(API + '/api/sites');
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       const catalog = await response.json();
       if (!Array.isArray(catalog)) throw new Error('Invalid site catalog');
@@ -163,7 +164,7 @@
           horizon: '0', minSun: String(state.opts.minSunElev),
           minEarth: String(state.opts.minEarthElev), missionDays: String(state.missionDays), source: 'horizons'
         });
-        const response = await fetch(`/api/timeline?${q}`);
+        const response = await fetch(`${API}/api/timeline?${q}`);
         if (!response.ok) throw new Error(`JPL Horizons request failed (${response.status})`);
         return { id: sc.id, result: await response.json() };
       }));
@@ -628,7 +629,7 @@
     output.setAttribute('aria-busy', 'true');
     output.textContent = 'Requesting an independent JPL Horizons ephemeris…';
     try {
-      const response = await fetch('/api/horizons/compare', {
+      const response = await fetch(API + '/api/horizons/compare', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
@@ -1022,7 +1023,7 @@
 
   async function loadLunarPhase() {
     try {
-      const response = await fetch('/api/lunar-phase');
+      const response = await fetch(API + '/api/lunar-phase');
       if (!response.ok) return;
       const data = await response.json();
       const disc = $('phase-disc');
@@ -1051,7 +1052,7 @@
 
   async function loadAPOD() {
     try {
-      const response = await fetch('/api/apod');
+      const response = await fetch(API + '/api/apod');
       if (!response.ok) return;
       const data = await response.json();
       const panel = $('apod-panel');
@@ -1081,7 +1082,7 @@
   // ------------------------------------------------------------------ init
   async function init() {
     try {
-      const response = await fetch('/api/terrain/profiles');
+      const response = await fetch(API + '/api/terrain/profiles');
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       const catalog = await response.json();
       if (catalog.schemaVersion !== 1 || !Array.isArray(catalog.profiles)

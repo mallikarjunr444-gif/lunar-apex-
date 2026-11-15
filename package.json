@@ -8,7 +8,7 @@
     "node": ">=20"
   },
   "scripts": {
-    "check": "node --check frontend/js/app.js && node --check frontend/js/charts.js && node --check frontend/js/engine.js && node --check frontend/js/links.js && node --check frontend/js/live-adapter.js && node --check backend/server.mjs && node --check backend/routes.mjs && node --check backend/http.mjs && node --check backend/params.mjs && node --check backend/service.mjs && node --check backend/config.mjs && node --check backend/resources.mjs && node --check tools/import_sightline_horizons.js",
+    "check": "node --check frontend/js/config.js && node --check frontend/js/app.js && node --check frontend/js/charts.js && node --check frontend/js/engine.js && node --check frontend/js/links.js && node --check frontend/js/live-adapter.js && node --check backend/server.mjs && node --check backend/routes.mjs && node --check backend/http.mjs && node --check backend/params.mjs && node --check backend/service.mjs && node --check backend/config.mjs && node --check backend/resources.mjs && node --check tools/import_sightline_horizons.js",
     "test": "node --test test/engine.test.js && node --test test/ephemeris.test.mjs test/server.test.mjs test/api.test.mjs test/live-adapter.test.mjs test/polar-map.test.mjs && node --test test/links.test.js",
     "start": "node backend/server.mjs",
     "terrain:sync": "node tools/import_sightline_horizons.js"
