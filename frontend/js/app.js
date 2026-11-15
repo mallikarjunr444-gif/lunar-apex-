@@ -14,7 +14,7 @@
     scenarios: [], windowDays: 30, missionDays: 7,
     opts: { sunLimb: true, minSunElev: 0, minEarthElev: 0 },
     view: 'panorama', yMode: 'zoom', offsetMs: 0, playing: false, dataSource: 'analytic',
-    finderId: null, mapScenarioId: null, finderDays: 365, theme: 'dark', terrainProfiles: []
+    tab: 'compare', finderId: null, mapScenarioId: null, finderDays: 365, theme: 'dark', terrainProfiles: []
   };
 
   // ------------------------------------------------------------ formatting
@@ -211,41 +211,44 @@
         <button class="icon" data-act="dup" title="Duplicate (then change its date or site)" aria-label="Duplicate scenario">⧉</button>
         <button class="icon" data-act="rm" title="Remove" aria-label="Remove scenario">✕</button>
       </header>
-      <div class="ctl">
-        <label class="full">Site <select class="f-site">${siteOptions(sc)}</select></label>
-        <label>Latitude (° N+) <input class="f-lat" type="number" step="0.01" min="-90" max="90" value="${sc.lat}"></label>
-        <label>Longitude (° E+) <input class="f-lon" type="number" step="0.01" min="-180" max="360" value="${sc.lon}"></label>
-        <div class="full">
-          <div class="dt">
-            <label>Touchdown date (UTC) <input class="f-date" type="date" value="${dateStr(sc.tMs)}"></label>
-            <label>Time <input class="f-time" type="time" value="${timeStr(sc.tMs)}"></label>
-          </div>
-          <div class="nudge" style="margin-top:5px">
-            <button data-nudge="${-LUNATION}" title="One lunation earlier">−1 lunation</button>
-            <button data-nudge="${-DAY}">−1 d</button><button data-nudge="${DAY}">+1 d</button>
-            <button data-nudge="${LUNATION}" title="One lunation later">+1 lunation</button>
-          </div>
+      <label class="field">Site <select class="f-site">${siteOptions(sc)}</select></label>
+      <div class="when-row">
+        <div class="dt">
+          <label class="field">Touchdown date (UTC) <input class="f-date" type="date" value="${dateStr(sc.tMs)}"></label>
+          <label class="field">Time <input class="f-time" type="time" value="${timeStr(sc.tMs)}"></label>
         </div>
-        <label>Terrain mask (°) <input class="f-mask" type="number" step="0.1" min="0" max="45" value="${sc.maskDeg}" title="Uniform horizon elevation from surrounding terrain"></label>
-        <div class="file">
-          <label style="display:block">Horizon profile (CSV: az,el)<input class="f-file" type="file" accept=".csv,.txt,text/plain,text/csv"></label>
-          <span class="pname">${sc.profileName ? esc(sc.profileName) + ' <button class="pclear" data-act="clearp">remove</button>' : ''}</span>
+        <div class="nudge">
+          <button data-nudge="${-LUNATION}" title="One lunation earlier">−1 lunation</button>
+          <button data-nudge="${-DAY}">−1 d</button><button data-nudge="${DAY}">+1 d</button>
+          <button data-nudge="${LUNATION}" title="One lunation later">+1 lunation</button>
         </div>
       </div>
-      <div class="when mono" style="color:var(--mute);font-size:12px"></div>
+      <div class="when mono"></div>
       <canvas class="sky" aria-label="Sun and Earth positions relative to the horizon"></canvas>
       <div class="chips"></div>
       <dl class="stats"></dl>
-      <div class="site-resources">
-        <div class="resource-coords">Map coordinates: ${sc.lat.toFixed(4)}° N+, ${sc.lon.toFixed(4)}° E+${provenance ? ` · ${provenance}` : ''}</div>
-        <div class="resource-actions">
-          <a class="btn small" data-link="quickmap" href="${window.LunarLinks.quickmapURL(sc.lat, sc.lon)}" target="_blank" rel="noopener" title="Open Quickmap (Earth-shadow view) centred on these coordinates">QuickMap here</a>
-          <a class="btn small" data-link="trek" href="${window.LunarLinks.trekURL()}" target="_blank" rel="noopener" title="Open Moon Trek, then paste the copied coordinates into its search">Moon Trek</a>
-          <button class="btn small" data-act="copy-coordinates">Copy coordinates</button>
-          <button class="btn small" data-act="horizons">Check with JPL Horizons</button>
+      <details class="more">
+        <summary>Coordinates, terrain &amp; map tools</summary>
+        <div class="ctl">
+          <label class="field">Latitude (° N+) <input class="f-lat" type="number" step="0.01" min="-90" max="90" value="${sc.lat}"></label>
+          <label class="field">Longitude (° E+) <input class="f-lon" type="number" step="0.01" min="-180" max="360" value="${sc.lon}"></label>
+          <label class="field">Terrain mask (°) <input class="f-mask" type="number" step="0.1" min="0" max="45" value="${sc.maskDeg}" title="Uniform horizon elevation from surrounding terrain"></label>
+          <div class="file">
+            <label class="field">Horizon profile (CSV: az,el)<input class="f-file" type="file" accept=".csv,.txt,text/plain,text/csv"></label>
+            <span class="pname">${sc.profileName ? esc(sc.profileName) + ' <button class="pclear" data-act="clearp">remove</button>' : ''}</span>
+          </div>
         </div>
-        <output class="horizons-result" aria-live="polite"></output>
-      </div>
+        <div class="site-resources">
+          <div class="resource-coords">Map coordinates: ${sc.lat.toFixed(4)}° N+, ${sc.lon.toFixed(4)}° E+${provenance ? ` · ${provenance}` : ''}</div>
+          <div class="resource-actions">
+            <a class="btn small" data-link="quickmap" href="${window.LunarLinks.quickmapURL(sc.lat, sc.lon)}" target="_blank" rel="noopener" title="Open Quickmap (Earth-shadow view) centred on these coordinates">QuickMap here ↗</a>
+            <a class="btn small" data-link="trek" href="${window.LunarLinks.trekURL()}" target="_blank" rel="noopener" title="Open Moon Trek, then paste the copied coordinates into its search">Moon Trek ↗</a>
+            <button class="btn small" data-act="copy-coordinates">Copy coordinates</button>
+            <button class="btn small" data-act="horizons">Check with JPL Horizons</button>
+          </div>
+          <output class="horizons-result" aria-live="polite"></output>
+        </div>
+      </details>
     </article>`;
   }
 
@@ -263,7 +266,7 @@
   }
 
   function drawSiteMap() {
-    if (!state.scenarios.length) return;
+    if (state.tab !== 'map' || !state.scenarios.length) return;
     const sites = Object.values(window.LUNAR_SITE_INDEX);
     CH.drawPolarMap($('polar-map'), sites, state.scenarios, state.mapScenarioId);
   }
@@ -349,6 +352,7 @@
 
   // ------------------------------------------------------------- timelines
   function drawTimelines() {
+    if (state.tab !== 'timeline') return;
     const items = state.scenarios.map((sc) => ({ color: sc.color, name: sc.name, ser: derived(sc).ser }));
     CH.drawTimeline($('tl'), items, state.offsetMs, state.yMode);
     CH.drawLanes($('lanes'), items, state.offsetMs);
@@ -512,12 +516,12 @@
   }
   function renderFinder() {
     const sc = byId(state.finderId);
-    if (!sc) { CH.drawFinder($('finder'), null, 7); $('finder-out').innerHTML = ''; return; }
+    if (!sc) { if (state.tab === 'finder') CH.drawFinder($('finder'), null, 7); $('finder-out').innerHTML = ''; return; }
     const site = siteOf(sc);
     finderData = LE.landingWindows(site, store, sc.tMs, state.finderDays, state.opts, { stepMs: 15 * MIN, landStepMs: 3 * HOUR, lookaheadDays: 45 });
     finderSc = sc;
     $('finder').classList.remove('busy');
-    CH.drawFinder($('finder'), finderData, state.missionDays, null);
+    if (state.tab === 'finder') CH.drawFinder($('finder'), finderData, state.missionDays, null);
     finderSummary();
   }
   function ranges(data, arr, needH) {
@@ -615,7 +619,7 @@
       output.dataset.resultKey = key;
     } catch (error) {
       if (output.dataset.requestKey === key) {
-        output.textContent = `JPL Horizons comparison unavailable: ${error.message}`;
+        output.textContent = error.message;   // the server's message already says what failed
         output.dataset.resultKey = key;
       }
     } finally {
@@ -655,11 +659,56 @@
     } catch (e) { return false; }
   }
 
+  // ---------------------------------------------------------- summary banner
+  function renderVerdict() {
+    const el = $('verdict'), need = state.missionDays * 24;
+    const rows = state.scenarios.map((sc) => ({ sc, m: derived(sc).mission })).sort((a, b) => b.m.bothH - a.m.bothH);
+    if (!rows.length) { el.textContent = ''; return; }
+    const ok = rows.filter((r) => r.m.bothH >= need), top = rows[0];
+    el.className = 'verdict ' + (ok.length ? 'pass' : 'fail');
+    el.innerHTML = ok.length
+      ? `<b>${ok.length} of ${rows.length}</b> scenario${rows.length > 1 ? 's' : ''} support a ${state.missionDays}-day mission with power and a direct Earth link. Best: <b>${esc(top.sc.name)}</b>, ${fmtHours(top.m.bothH)} continuous from touchdown.`
+      : `No scenario supports a ${state.missionDays}-day mission with both power and a direct Earth link. Closest: <b>${esc(top.sc.name)}</b>, ${fmtHours(top.m.bothH)} continuous. Try the Date finder tab or shift the dates.`;
+  }
+
+  // ------------------------------------------------------------------- tabs
+  const TABS = ['compare', 'timeline', 'finder', 'map', 'learn'];
+  function setTab(name, focus) {
+    if (TABS.indexOf(name) < 0) name = 'compare';
+    state.tab = name;
+    document.querySelectorAll('[data-tabpanel]').forEach((p) => { p.hidden = p.dataset.tabpanel !== name; });
+    document.querySelectorAll('#tabs [role="tab"]').forEach((b) => {
+      const on = b.dataset.tab === name;
+      b.setAttribute('aria-selected', String(on)); b.tabIndex = on ? 0 : -1;
+      if (on && focus) b.focus();
+    });
+    try { localStorage.setItem('lunasight-tab', name); } catch (e) { /* storage unavailable */ }
+    // canvases have no size while hidden, so draw the newly visible one now
+    requestAnimationFrame(() => {
+      drawTimelines(); drawSiteMap();
+      if (name === 'finder' && finderData) CH.drawFinder($('finder'), finderData, state.missionDays, null);
+    });
+  }
+  function bindTabs() {
+    const tabs = $('tabs');
+    tabs.addEventListener('click', (e) => { const b = e.target.closest('[role="tab"]'); if (b) setTab(b.dataset.tab); });
+    tabs.addEventListener('keydown', (e) => {
+      const i = TABS.indexOf(state.tab);
+      const next = e.key === 'ArrowRight' ? i + 1 : e.key === 'ArrowLeft' ? i - 1 : e.key === 'Home' ? 0 : e.key === 'End' ? TABS.length - 1 : null;
+      if (next === null) return;
+      e.preventDefault(); setTab(TABS[(next + TABS.length) % TABS.length], true);
+    });
+    document.addEventListener('click', (e) => {
+      const menu = $('export-menu');
+      if (menu.open && (!menu.contains(e.target) || e.target.closest('.menu-list button'))) menu.open = false;
+    });
+  }
+
   // ---------------------------------------------------------------- refresh
   function refresh(opt) {
     opt = opt || {};
     state.offsetMs = clamp(state.offsetMs, 0, state.windowDays * DAY);
-    updateCards(); drawSiteMap(); drawTimelines(); renderTable(); updateClock(); renderTiles(); saveHash();
+    renderVerdict(); updateCards(); drawSiteMap(); drawTimelines(); renderTable(); updateClock(); renderTiles(); saveHash();
     if (opt.finder !== false) scheduleFinder();
     if (state.dataSource === 'horizons' && opt.live !== false) loadLiveData();
   }
@@ -789,13 +838,13 @@
       }
     });
 
-    $('shift-btns').addEventListener('click', (e) => {
+    ['shift-btns', 'shift-fine'].forEach((id) => $(id).addEventListener('click', (e) => {
       const b = e.target.closest('button'); if (!b) return;
       const m = b.dataset.shift.match(/^(-?\d+)([dh])$/); if (!m) return;
       const ms = Number(m[1]) * (m[2] === 'd' ? DAY : HOUR);
       state.scenarios.forEach((s) => { s.tMs += ms; syncInputs(s); });
       refresh();
-    });
+    }));
     $('btn-now').addEventListener('click', () => { const n = Math.floor(Date.now() / MIN) * MIN; state.scenarios.forEach((s) => { s.tMs = n; syncInputs(s); }); refresh(); });
     $('btn-sync').addEventListener('click', () => { const t = state.scenarios[0].tMs; state.scenarios.forEach((s) => { s.tMs = t; syncInputs(s); }); refresh(); });
     $('win').addEventListener('change', (e) => { state.windowDays = Number(e.target.value); refresh({ finder: false }); });
@@ -876,7 +925,7 @@
     fin.addEventListener('pointerleave', () => { const tip = fin.parentNode.querySelector('.tip'); if (tip) tip.remove(); if (finderData) CH.drawFinder(fin, finderData, state.missionDays, null); });
 
     let rz = null;
-    window.addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(() => { refreshDynamic(); if (finderData) CH.drawFinder($('finder'), finderData, state.missionDays, null); }, 120); });
+    window.addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(() => { refreshDynamic(); drawSiteMap(); if (finderData && state.tab === 'finder') CH.drawFinder($('finder'), finderData, state.missionDays, null); }, 120); });
   }
 
   function markSeg(id, key, val) { document.querySelectorAll(`#${id} button`).forEach((b) => b.classList.toggle('on', b.dataset[key] === val)); }
@@ -932,7 +981,11 @@
     $('data-source').value = state.dataSource;
     $('limb').checked = state.opts.sunLimb;
     markSeg('view-btns', 'view', state.view); markSeg('y-btns', 'y', state.yMode);
-    bind(); renderResources(); renderCards(); refresh();
+    bind(); bindTabs(); renderResources();
+    let savedTab = 'compare';
+    try { savedTab = localStorage.getItem('lunasight-tab') || 'compare'; } catch (e) { /* storage unavailable */ }
+    setTab(savedTab);
+    renderCards(); refresh();
   }
 
   window.__lunar = { state, store, refresh, derived, LE };   // handy for debugging in the console

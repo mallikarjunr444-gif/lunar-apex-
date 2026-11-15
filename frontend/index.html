@@ -14,15 +14,20 @@
     <svg viewBox="0 0 32 32" width="30" height="30" aria-hidden="true"><circle cx="16" cy="16" r="14" fill="#c9ced6"/><circle cx="11" cy="12" r="3" fill="#8b919c"/><circle cx="21" cy="20" r="4" fill="#8b919c"/><circle cx="24" cy="9" r="2.5" fill="#ffd166"/></svg>
     <div>
       <h1>LunaSight</h1>
-      <p>Lunar Landing Site Navigator · Sun &amp; Earth from any point on the Moon</p>
+      <p>Lunar landing site navigator · Sun &amp; Earth from any point on the Moon</p>
     </div>
   </div>
   <div class="top-actions">
     <button id="btn-share" class="btn" title="Copy a link to this exact comparison">Copy link</button>
-    <button id="btn-export" class="btn" title="Download the current comparison as CSV">Export CSV</button>
-    <button id="btn-evidence" class="btn" title="Download methods, provenance, and scenario metrics as JSON">Export evidence</button>
+    <details class="menu" id="export-menu">
+      <summary class="btn">Export ▾</summary>
+      <div class="menu-list">
+        <button id="btn-export"><span>Comparison (CSV)</span><small>One column per scenario</small></button>
+        <button id="btn-evidence"><span>Evidence report (JSON)</span><small>Methods, provenance and metrics</small></button>
+      </div>
+    </details>
     <button id="btn-theme" class="btn ghost" title="Switch color theme">Light theme</button>
-    <button id="btn-help" class="btn ghost" aria-expanded="false" aria-controls="help">How to read this</button>
+    <button id="btn-help" class="btn ghost" aria-expanded="false" aria-controls="help">Help</button>
   </div>
 </header>
 
@@ -38,65 +43,73 @@
 </section>
 
 <main id="main-content">
-  <section class="bar" aria-label="Global controls">
+  <section class="bar" aria-label="Mission settings">
     <div class="group">
-      <span class="lbl">Shift all dates</span>
-      <div class="seg" id="shift-btns">
-        <button data-shift="-30d">−30 d</button><button data-shift="-7d">−7 d</button><button data-shift="-1d">−1 d</button><button data-shift="-1h">−1 h</button>
-        <button data-shift="1h">+1 h</button><button data-shift="1d">+1 d</button><button data-shift="7d">+7 d</button><button data-shift="30d">+30 d</button>
-      </div>
-      <button id="btn-now" class="btn small">Now</button>
-      <button id="btn-sync" class="btn small" title="Set every scenario to the first scenario's date">Sync to first</button>
-    </div>
-    <div class="group">
-      <label>Window
+      <label>Mission length <input id="missionDays" type="number" min="1" max="60" step="0.5" value="7"> days</label>
+      <label title="How many days after each touchdown the charts and table cover.">Window
         <select id="win">
           <option value="3">3 days</option><option value="7">7 days</option><option value="15">15 days</option>
           <option value="30" selected>30 days</option><option value="60">60 days</option>
         </select>
       </label>
-      <label title="How long must the mission operate after touchdown?">Mission length
-        <input id="missionDays" type="number" min="1" max="60" step="0.5" value="7"> d
-      </label>
-      <label title="Sun counts as 'up' only above this elevation over the local horizon (negative = allow grazing light).">Min Sun elev
-        <input id="minSun" type="number" min="-2" max="20" step="0.1" value="0"> °
-      </label>
-      <label title="Earth must be at least this high above the local horizon for a direct link.">Min Earth elev
-        <input id="minEarth" type="number" min="-2" max="30" step="0.1" value="0"> °
-      </label>
-      <label title="Use the local fast model or request live ephemerides from JPL Horizons through the backend.">Data source
-        <select id="data-source">
-          <option value="analytic">Fast local model</option>
-          <option value="horizons">Live JPL Horizons</option>
-        </select>
-      </label>
-      <label class="chk" title="Sunrise/sunset when the Sun's upper limb crosses the horizon (the usual convention). Off = centre of the disc.">
-        <input id="limb" type="checkbox" checked> Upper-limb rule
-      </label>
     </div>
+    <div class="group">
+      <span class="lbl">Shift all dates</span>
+      <div class="seg" id="shift-btns">
+        <button data-shift="-30d">−30 d</button><button data-shift="-7d">−7 d</button><button data-shift="-1d">−1 d</button>
+        <button data-shift="1d">+1 d</button><button data-shift="7d">+7 d</button><button data-shift="30d">+30 d</button>
+      </div>
+      <button id="btn-now" class="btn small">Now</button>
+      <button id="btn-sync" class="btn small" title="Set every scenario to the first scenario's date">Match first</button>
+    </div>
+    <div class="spacer"></div>
     <div class="group">
       <div class="seg" id="view-btns" title="Sky view">
         <button data-view="panorama" class="on">Panorama</button><button data-view="dome">Dome</button>
       </div>
       <button id="btn-add" class="btn primary">+ Add scenario</button>
     </div>
+    <details class="adv">
+      <summary>Advanced settings</summary>
+      <div class="adv-grid">
+        <label title="Sun counts as 'up' only above this elevation over the local horizon (negative = allow grazing light).">Min Sun elevation <input id="minSun" type="number" min="-2" max="20" step="0.1" value="0"> °</label>
+        <label title="Earth must be at least this high above the local horizon for a direct link.">Min Earth elevation <input id="minEarth" type="number" min="-2" max="30" step="0.1" value="0"> °</label>
+        <label title="Use the local fast model or request live ephemerides from JPL Horizons through the backend.">Data source
+          <select id="data-source"><option value="analytic">Fast local model</option><option value="horizons">Live JPL Horizons</option></select>
+        </label>
+        <label class="chk" title="Sunrise/sunset when the Sun's upper limb crosses the horizon (the usual convention). Off = centre of the disc.">
+          <input id="limb" type="checkbox" checked> Upper-limb rule
+        </label>
+        <div class="seg" id="shift-fine"><button data-shift="-1h">−1 h</button><button data-shift="1h">+1 h</button></div>
+      </div>
+    </details>
   </section>
+
+  <div id="verdict" class="verdict" role="status" aria-live="polite"></div>
 
   <section id="cards" class="cards" aria-live="polite"></section>
 
-  <section class="panel" id="site-map-panel">
+  <nav class="tabs" id="tabs" role="tablist" aria-label="Analysis views">
+    <button role="tab" id="tab-compare" data-tab="compare" aria-selected="true" aria-controls="tp-compare">Compare</button>
+    <button role="tab" id="tab-timeline" data-tab="timeline" aria-selected="false" aria-controls="tp-timeline" tabindex="-1">Timeline</button>
+    <button role="tab" id="tab-finder" data-tab="finder" aria-selected="false" aria-controls="tp-finder" tabindex="-1">Date finder</button>
+    <button role="tab" id="tab-map" data-tab="map" aria-selected="false" aria-controls="tp-map" tabindex="-1">Site map</button>
+    <button role="tab" id="tab-learn" data-tab="learn" aria-selected="false" aria-controls="tp-learn" tabindex="-1">Learn &amp; resources</button>
+  </nav>
+
+  <div data-tabpanel="compare" id="tp-compare" role="tabpanel" aria-labelledby="tab-compare">
+    <section class="panel" id="table-panel">
     <div class="panel-h">
       <div>
-        <h2>South-pole site map</h2>
-        <p class="sub">A clean-room polar map of the 60°S–90°S region. Select a scenario, then click a site or map location to move it. Approximate catalog centers are marked with open circles.</p>
+        <h2>Side-by-side comparison</h2>
+        <p class="sub" id="table-sub"></p>
       </div>
-      <label class="finder-ctl">Scenario <select id="map-scenario"></select></label>
     </div>
-    <div class="chart-wrap"><canvas id="polar-map" class="chart polar-map" aria-label="Interactive polar map of lunar south-pole landing sites"></canvas></div>
-    <p id="site-map-status" class="sub" aria-live="polite">Click a marker to use its sourced coordinates, or click elsewhere inside the map for a custom site.</p>
+    <div class="table-wrap"><table id="cmp"></table></div>
   </section>
-
-  <section class="panel" id="timeline-panel">
+  </div>
+  <div data-tabpanel="timeline" id="tp-timeline" role="tabpanel" aria-labelledby="tab-timeline" hidden>
+    <section class="panel" id="timeline-panel">
     <div class="panel-h">
       <div>
         <h2>Timeline since touchdown</h2>
@@ -126,18 +139,9 @@
       </label>
     </div>
   </section>
-
-  <section class="panel" id="table-panel">
-    <div class="panel-h">
-      <div>
-        <h2>Side-by-side comparison</h2>
-        <p class="sub" id="table-sub"></p>
-      </div>
-    </div>
-    <div class="table-wrap"><table id="cmp"></table></div>
-  </section>
-
-  <section class="panel" id="finder-panel">
+  </div>
+  <div data-tabpanel="finder" id="tp-finder" role="tabpanel" aria-labelledby="tab-finder" hidden>
+    <section class="panel" id="finder-panel">
     <div class="panel-h">
       <div>
         <h2>Landing-window finder</h2>
@@ -157,13 +161,26 @@
     </div>
     <div id="finder-out" class="finder-out"></div>
   </section>
-
-  <section class="panel" id="learn">
+  </div>
+  <div data-tabpanel="map" id="tp-map" role="tabpanel" aria-labelledby="tab-map" hidden>
+    <section class="panel" id="site-map-panel">
+    <div class="panel-h">
+      <div>
+        <h2>South-pole site map</h2>
+        <p class="sub">A clean-room polar map of the 60°S–90°S region. Select a scenario, then click a site or map location to move it. Approximate catalog centers are marked with open circles.</p>
+      </div>
+      <label class="finder-ctl">Scenario <select id="map-scenario"></select></label>
+    </div>
+    <div class="chart-wrap"><canvas id="polar-map" class="chart polar-map" aria-label="Interactive polar map of lunar south-pole landing sites"></canvas></div>
+    <p id="site-map-status" class="sub" aria-live="polite">Click a marker to use its sourced coordinates, or click elsewhere inside the map for a custom site.</p>
+  </section>
+  </div>
+  <div data-tabpanel="learn" id="tp-learn" role="tabpanel" aria-labelledby="tab-learn" hidden>
+    <section class="panel" id="learn">
     <div class="panel-h"><div><h2>Why the Moon is a different problem</h2><p class="sub">The same Sun, but nothing like Earth daylight.</p></div></div>
     <div class="tiles" id="tiles"></div>
   </section>
-
-  <section class="panel" id="resources-panel">
+    <section class="panel" id="resources-panel">
     <div class="panel-h">
       <div>
         <h2>Mission data &amp; learning resources</h2>
@@ -181,6 +198,7 @@
       <div id="research-groups" class="research-groups"></div>
     </details>
   </section>
+  </div>
 </main>
 
 <footer>
@@ -194,27 +212,6 @@
       <li><b>Not modelled:</b> Earth/Sun eclipses of the site, antenna/pointing limits, dust, thermal limits, site tilt, and the Earth-disc size in link budgets.</li>
     </ul>
   </details>
-  <p class="res">
-    Data &amp; resources:
-    <a href="https://quickmap.lroc.im-ldi.com/?prjExtent=-3335249.7991968%2C-1737400%2C3335249.7991968%2C1737400&amp;earthShadowEnabled=true&amp;proj=10&amp;stack=3314&amp;defs=N4IgzGCMAsIFygPYAcCGBjAlgFwJ70gF9Cg" target="_blank" rel="noopener">Quickmap</a> ·
-    <a href="https://trek.nasa.gov/moon/" target="_blank" rel="noopener">Moon Trek</a> ·
-    <a href="https://ssd.jpl.nasa.gov/horizons/" target="_blank" rel="noopener">JPL Horizons</a> ·
-    <a href="https://www.asc-csa.gc.ca/eng/astronomy/moon-exploration/" target="_blank" rel="noopener">CSA Moon Exploration</a>.
-  </p>
-  <div class="resource-grid" aria-label="NASA and partner resources">
-    <a class="resource-card" href="https://quickmap.lroc.im-ldi.com/?prjExtent=-3335249.7991968%2C-1737400%2C3335249.7991968%2C1737400&amp;earthShadowEnabled=true&amp;proj=10&amp;stack=3314&amp;defs=N4IgzGCMAsIFygPYAcCGBjAlgFwJ70gF9Cg" target="_blank" rel="noopener">
-      <strong>Quickmap</strong><span>NASA LRO imagery, topography, and terrain horizons.</span>
-    </a>
-    <a class="resource-card" href="https://trek.nasa.gov/moon/" target="_blank" rel="noopener">
-      <strong>Moon Trek</strong><span>NASA 3D lunar terrain and site context.</span>
-    </a>
-    <a class="resource-card" href="https://ssd.jpl.nasa.gov/horizons/" target="_blank" rel="noopener">
-      <strong>JPL Horizons</strong><span>Precision Sun/Earth ephemerides used by the backend.</span>
-    </a>
-    <a class="resource-card" href="https://www.asc-csa.gc.ca/eng/astronomy/moon-exploration/" target="_blank" rel="noopener">
-      <strong>CSA Moon Exploration</strong><span>Canadian lunar exploration missions and technology.</span>
-    </a>
-  </div>
   <p class="disclaimer">NASA does not endorse any non-U.S. Government entity and is not responsible for information contained on non-U.S. Government websites. For non-U.S. Government websites, participants must comply with any data use parameters of that specific website.</p>
 </footer>
 
