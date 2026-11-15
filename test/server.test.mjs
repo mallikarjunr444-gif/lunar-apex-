@@ -79,4 +79,74 @@ test("HTTP API serves terrain data and compares a touchdown with Horizons", asyn
     body: JSON.stringify({ scenario: { lat: 100, lon: 0, date: "2027-01-01T00:00:00Z" } })
   });
   assert.equal(invalid.status, 400);
+
+  // New Backend Features
+  // 1. /api/lunar-phase
+  const phaseRes = await fetch(`${base}/api/lunar-phase`);
+  assert.equal(phaseRes.status, 200);
+  const phase = await phaseRes.json();
+  assert.ok(typeof phase.phaseName === "string");
+  assert.ok(phase.illuminationFraction >= 0 && phase.illuminationFraction <= 1);
+  assert.ok(phase.ageDays >= 0 && phase.ageDays <= 30);
+
+  // 2. /api/sites/:id (existing & non-existing)
+  const siteRes = await fetch(`${base}/api/sites/shackleton`);
+  assert.equal(siteRes.status, 200);
+  const siteData = await siteRes.json();
+  assert.equal(siteData.id, "shackleton");
+
+  const notFoundRes = await fetch(`${base}/api/sites/non-existent-site-id`);
+  assert.equal(notFoundRes.status, 404);
+
+  // 3. /api/stats with cache metrics
+  const statsRes = await fetch(`${base}/api/stats`);
+  assert.equal(statsRes.status, 200);
+  const stats = await statsRes.json();
+  assert.equal(stats.version, "2.1.0");
+  assert.ok(stats.sitesCount >= 44);
+  assert.ok(stats.cache && typeof stats.cache.hits === "number");
+
+  // 4. /api/sunrise-next
+  const sunriseRes = await fetch(`${base}/api/sunrise-next?site=apollo11&start=2026-11-15T00:00:00Z`);
+  assert.equal(sunriseRes.status, 200);
+  const sunriseData = await sunriseRes.json();
+  assert.equal(sunriseData.site.id, "apollo11");
+  assert.ok("currentlyUp" in sunriseData.sun);
+  assert.ok("nextTransition" in sunriseData.sun);
+
+  // 5. /api/landing-windows
+  const windowsRes = await fetch(`${base}/api/landing-windows?site=shackleton&start=2026-11-15T00:00:00Z&days=30&missionDays=7`);
+  assert.equal(windowsRes.status, 200);
+  const windowsData = await windowsRes.json();
+  assert.equal(windowsData.missionDays, 7);
+  assert.ok(windowsData.totalTouchdownDatesTested > 0);
+  assert.ok(Array.isArray(windowsData.qualifyingWindows));
+
+  // 6. /api/elevation-profile
+  const profileRes = await fetch(`${base}/api/elevation-profile?site=sightline-shackleton-rim`);
+  assert.equal(profileRes.status, 200);
+  const profileData = await profileRes.json();
+  assert.equal(profileData.hasTerrainData, true);
+  assert.equal(profileData.azimuthSamples, 1440);
+
+  // 7. ETag and 304 Not Modified
+  const terrainEtag = terrainResponse.headers.get("etag");
+  assert.ok(terrainEtag, "ETag header must be present");
+  const cachedTerrainRes = await fetch(`${base}/api/terrain/profiles`, {
+    headers: { "if-none-match": terrainEtag }
+  });
+  assert.equal(cachedTerrainRes.status, 304);
+
+  const phaseEtag = phaseRes.headers.get("etag");
+  assert.ok(phaseEtag, "ETag header must be present on lunar-phase");
+  const cachedPhaseRes = await fetch(`${base}/api/lunar-phase`, {
+    headers: { "if-none-match": phaseEtag }
+  });
+  assert.equal(cachedPhaseRes.status, 304);
+
+  // 8. CORS preflight OPTIONS request
+  const optionsRes = await fetch(`${base}/api/timeline`, { method: "OPTIONS" });
+  assert.equal(optionsRes.status, 204);
+  assert.equal(optionsRes.headers.get("access-control-allow-origin"), "*");
+  assert.ok(optionsRes.headers.get("access-control-allow-methods").includes("GET"));
 });

@@ -3,11 +3,12 @@
 import http from "node:http";
 import { fileURLToPath } from "node:url";
 import { FRONTEND_DIR, PORT } from "./config.mjs";
-import { HttpError, sendError, serveStatic } from "./http.mjs";
+import { HttpError, sendError, sendPreflight, serveStatic } from "./http.mjs";
 import { handleApi } from "./routes.mjs";
 
 export const server = http.createServer(async (req, res) => {
   try {
+    if (req.method === "OPTIONS") return sendPreflight(res);
     const url = new URL(req.url || "/", "http://localhost");   // fixed base: never trust the Host header
     if (url.pathname === "/api" || url.pathname.startsWith("/api/")) return await handleApi(req, res, url);
     if (req.method !== "GET" && req.method !== "HEAD") {

@@ -155,7 +155,7 @@
   function dayTicks(days) { return days <= 4 ? 0.5 : days <= 9 ? 1 : days <= 20 ? 2 : days <= 40 ? 5 : 10; }
 
   /** items: [{color,name,ser}] — all series share duration. cursorMs = offset from T0. */
-  function drawTimeline(canvas, items, cursorMs, yMode) {
+  function drawTimeline(canvas, items, cursorMs, yMode, hoverMs) {
     const { ctx, w, h } = setup(canvas);
     const L = 40, R = 10, T = 10, B = 22, pw = w - L - R, ph = h - T - B;
     canvas._g = { L, pw, total: 0 };
@@ -198,6 +198,41 @@
     if (cursorMs != null) {
       const x = X(Math.min(cursorMs, total));
       ctx.strokeStyle = '#fff'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(x, T); ctx.lineTo(x, T + ph); ctx.stroke();
+    }
+    // Hover tooltip overlay
+    if (hoverMs != null && items.length > 0) {
+      const hx = X(Math.min(hoverMs, total));
+      const ser = items[0].ser;
+      const idx = Math.min(ser.n - 1, Math.max(0, Math.round(hoverMs / ser.stepMs)));
+      if (idx >= 0 && idx < ser.n) {
+        const tooltipLines = items.map(it => {
+          const s = it.ser;
+          const i = Math.min(s.n - 1, Math.max(0, Math.round(hoverMs / s.stepMs)));
+          return `${it.name.slice(0,12)}: \u2600${s.sunAlt[i].toFixed(1)}\u00b0 \u2316${s.earthAlt[i].toFixed(1)}\u00b0`;
+        });
+        const tooltipText = [`T+${(hoverMs/86400000).toFixed(2)}d`, ...tooltipLines];
+        ctx.save();
+        ctx.font = '11px system-ui';
+        const maxW = Math.max(...tooltipText.map(t => ctx.measureText(t).width));
+        const th = tooltipLines.length * 16 + 22;
+        const tw = maxW + 20;
+        let tx = hx + 8;
+        if (tx + tw > L + pw) tx = hx - tw - 8;
+        const ty = T + 6;
+        ctx.fillStyle = 'rgba(5,8,15,.92)';
+        ctx.strokeStyle = '#2b3957';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.roundRect ? ctx.roundRect(tx, ty, tw, th, 6) : ctx.rect(tx, ty, tw, th);
+        ctx.fill(); ctx.stroke();
+        ctx.fillStyle = '#93a0bb';
+        ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+        tooltipText.forEach((line, i) => {
+          ctx.fillStyle = i === 0 ? '#e6ebf5' : '#93a0bb';
+          ctx.fillText(line, tx + 10, ty + 6 + i * 16);
+        });
+        ctx.restore();
+      }
     }
   }
 
@@ -294,6 +329,16 @@
       ctx.strokeStyle = scenario.color; ctx.lineWidth = scenario.id === activeId ? 2 : 1.2; ctx.stroke();
       ctx.beginPath(); ctx.arc(point.x, point.y, 3, 0, Math.PI * 2);
       ctx.fillStyle = scenario.color; ctx.fill();
+      if (scenario.id === activeId) {
+        ctx.save();
+        ctx.font = 'bold 11px system-ui';
+        ctx.fillStyle = scenario.color;
+        ctx.textAlign = point.x > cx ? 'left' : 'right';
+        ctx.textBaseline = 'middle';
+        const labelX = point.x > cx ? point.x + 10 : point.x - 10;
+        ctx.fillText(scenario.name.slice(0, 18), labelX, point.y);
+        ctx.restore();
+      }
     });
     ctx.fillStyle = TEXT; ctx.font = '11px system-ui'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     ctx.fillText('90°S', cx, cy);
@@ -348,7 +393,32 @@
     ctx.setLineDash([6, 4]); ctx.strokeStyle = '#ff9f1c'; ctx.lineWidth = 1.2;
     ctx.beginPath(); ctx.moveTo(L, Y(missionDays)); ctx.lineTo(L + pw, Y(missionDays)); ctx.stroke(); ctx.setLineDash([]);
     if (hoverIdx != null && hoverIdx >= 0 && hoverIdx < n) {
-      ctx.strokeStyle = '#fff'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(X(hoverIdx), T); ctx.lineTo(X(hoverIdx), T + ph); ctx.stroke();
+      const hx = X(hoverIdx);
+      ctx.strokeStyle = '#fff'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(hx, T); ctx.lineTo(hx, T + ph); ctx.stroke();
+      const d = new Date(data.t[hoverIdx]);
+      const dateStr = d.toLocaleString('en', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' });
+      const lines = [
+        dateStr,
+        `\u2600 Sunlight: ${(data.sunH[hoverIdx]/24).toFixed(1)} d`,
+        `\u2316 Earth: ${(data.earthH[hoverIdx]/24).toFixed(1)} d`,
+        `\u2713 Both: ${(data.bothH[hoverIdx]/24).toFixed(1)} d`
+      ];
+      ctx.save();
+      ctx.font = '11px system-ui';
+      const maxW = Math.max(...lines.map(l => ctx.measureText(l).width));
+      const tw = maxW + 20, th = lines.length * 16 + 12;
+      let tx = hx + 8;
+      if (tx + tw > L + pw) tx = hx - tw - 8;
+      ctx.fillStyle = 'rgba(5,8,15,.93)'; ctx.strokeStyle = '#2b3957'; ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.roundRect ? ctx.roundRect(tx, T + 6, tw, th, 6) : ctx.rect(tx, T + 6, tw, th);
+      ctx.fill(); ctx.stroke();
+      ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+      lines.forEach((line, i) => {
+        ctx.fillStyle = i === 0 ? '#e6ebf5' : '#93a0bb';
+        ctx.fillText(line, tx + 10, T + 12 + i * 16);
+      });
+      ctx.restore();
     }
   }
 

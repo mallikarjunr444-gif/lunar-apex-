@@ -8,6 +8,20 @@
   const LUNATION = LE.SYNODIC_DAYS * DAY;
   const store = new LE.FrameStore();
   const $ = (id) => document.getElementById(id);
+
+  function toast(message, type = 'info', durationMs = 3000) {
+    const container = document.getElementById('toast-container') || document.body;
+    const el = document.createElement('div');
+    el.className = `toast ${type}`;
+    el.textContent = message;
+    container.appendChild(el);
+    setTimeout(() => {
+      el.classList.add('removing');
+      el.addEventListener('animationend', () => el.remove(), { once: true });
+    }, durationMs);
+    return el;
+  }
+
   let uid = 1;
 
   const state = {
@@ -35,11 +49,14 @@
   const deg = (v) => (v == null ? '—' : v.toFixed(1) + '°');
   const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const normLon = (x) => { x = ((x + 180) % 360 + 360) % 360 - 180; return x === -180 ? 180 : x; };
-  const status = (message) => {
+  const status = (message, type) => {
     const el = $('app-status'); if (!el) return;
     el.textContent = message;
     clearTimeout(status.timer);
-    if (message) status.timer = setTimeout(() => { el.textContent = ''; }, 2600);
+    if (message) {
+      status.timer = setTimeout(() => { el.textContent = ''; }, 2600);
+      toast(message, type || 'info');
+    }
   };
   function setTheme(theme) {
     state.theme = theme === 'light' ? 'light' : 'dark';
@@ -136,7 +153,7 @@
     if (state.dataSource !== 'horizons') return;
     const key = liveKey();
     if (liveLoading || liveRequestKey === key) return;
-    liveLoading = true; liveRequestKey = key; status('Loading live JPL Horizons ephemerides…');
+    liveLoading = true; liveRequestKey = key; status('Loading live JPL Horizons ephemerides…', 'info');
     try {
       const results = await Promise.all(state.scenarios.map(async (sc) => {
         const q = new URLSearchParams({
@@ -166,10 +183,11 @@
       cache.clear();
       status(fallback
         ? `Live Horizons unavailable for ${fallback} site${fallback === 1 ? '' : 's'}; analytic fallback used.`
-        : 'Live JPL Horizons positions loaded; terrain masks applied locally.');
+        : 'Live JPL Horizons positions loaded; terrain masks applied locally.',
+        fallback ? 'error' : 'success');
       refresh({ finder: false, live: false });
     } catch (error) {
-      liveResults.clear(); status(`Live data unavailable: ${error.message}`);
+      liveResults.clear(); status(`Live data unavailable: ${error.message}`, 'error');
     } finally {
       liveLoading = false;
       if (state.dataSource === 'horizons' && liveRequestKey !== liveKey()) {
@@ -325,6 +343,18 @@
         chip(m.sunH >= need ? 'pass' : 'fail', `Power ${m.sunH >= need ? '✓' : '✗'} ${fmtHours(m.sunH)} from T+0`) +
         chip(m.earthH >= need ? 'pass' : 'fail', `Comm ${m.earthH >= need ? '✓' : '✗'} ${fmtHours(m.earthH)} from T+0`);
 
+      const header = el.querySelector('.card-h');
+      let badge = el.querySelector('.card-score');
+      if (!badge) {
+        badge = document.createElement('span');
+        badge.className = 'card-score';
+        header.insertBefore(badge, el.querySelector('.f-name'));
+      }
+      const pct_score = Math.round((d.sum.sunFrac + d.sum.earthFrac + d.sum.bothFrac) / 3 * 100);
+      badge.textContent = pct_score;
+      badge.className = `card-score score-${pct_score >= 70 ? 'high' : pct_score >= 40 ? 'mid' : 'low'}`;
+      badge.title = `Overall score: ${pct_score}% (sunlit ${Math.round(d.sum.sunFrac*100)}%, Earth ${Math.round(d.sum.earthFrac*100)}%, both ${Math.round(d.sum.bothFrac*100)}%)`;
+
       const sampledEvent = (flags) => {
         const start = liveIndex;
         const up = Boolean(flags[start]);
@@ -428,7 +458,7 @@
     const a = document.createElement('a');
     a.href = url; a.download = `lunasight-${dateStr(Date.now())}.csv`;
     document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
-    status('Comparison exported as CSV.');
+    status('Comparison exported as CSV.', 'success');
   }
 
   function exportEvidence() {
@@ -504,7 +534,7 @@
     const link = document.createElement('a');
     link.href = url; link.download = `lunasight-evidence-${dateStr(Date.now())}.json`;
     document.body.appendChild(link); link.click(); link.remove(); URL.revokeObjectURL(url);
-    status('Scenario evidence exported as JSON.');
+    status('Scenario evidence exported as JSON.', 'success');
   }
 
   // ---------------------------------------------------------------- finder
@@ -817,6 +847,13 @@
       const el = b.closest('.card'); if (!el) return;
       const sc = byId(el.dataset.id);
       if (b.dataset.act === 'horizons') { checkHorizons(sc, el, b); return; }
+      if (b.dataset.act === 'trek-open') {
+        const coordinates = `${sc.lat.toFixed(6)}, ${sc.lon.toFixed(6)}`;
+        if (navigator.clipboard) navigator.clipboard.writeText(coordinates).catch(() => {});
+        window.open('https://trek.nasa.gov/moon/', '_blank', 'noopener');
+        toast('Coordinates copied — paste into Moon Trek search', 'info', 4000);
+        return;
+      }
       if (b.dataset.act === 'copy-coordinates') {
         const coordinates = `${sc.lat.toFixed(6)}, ${sc.lon.toFixed(6)}`;
         if (navigator.clipboard) navigator.clipboard.writeText(coordinates).catch(() => window.prompt('Copy lunar latitude, longitude:', coordinates));
@@ -895,7 +932,20 @@
       };
       let down = false;
       canvas.addEventListener('pointerdown', (ev) => { down = true; canvas.setPointerCapture(ev.pointerId); set(ev); });
-      canvas.addEventListener('pointermove', (ev) => { if (down) set(ev); });
+      canvas.addEventListener('pointermove', (ev) => {
+        if (down) {
+          set(ev);
+        } else if (canvas.id === 'tl') {
+          const g = canvas._g; if (!g || !g.total) return;
+          const r = canvas.getBoundingClientRect();
+          const hoverMs = clamp((ev.clientX - r.left - g.L) / g.pw, 0, 1) * g.total;
+          const items = state.scenarios.map((sc) => ({ color: sc.color, name: sc.name, ser: derived(sc).ser }));
+          CH.drawTimeline(canvas, items, state.offsetMs, state.yMode, hoverMs);
+        }
+      });
+      canvas.addEventListener('pointerleave', () => {
+        if (canvas.id === 'tl' && !down) drawTimelines();
+      });
       canvas.addEventListener('pointerup', () => { down = false; });
       canvas.addEventListener('pointercancel', () => { down = false; });
     };
@@ -926,6 +976,29 @@
 
     let rz = null;
     window.addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(() => { refreshDynamic(); drawSiteMap(); if (finderData && state.tab === 'finder') CH.drawFinder($('finder'), finderData, state.missionDays, null); }, 120); });
+
+    document.addEventListener('keydown', (e) => {
+      // Don't fire when typing in inputs
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'TEXTAREA') return;
+      if (e.key === ' ' || e.key === 'Spacebar') {
+        e.preventDefault();
+        $('btn-play').click();
+      }
+      if (e.key === 'ArrowRight') {
+        e.preventDefault();
+        state.offsetMs = Math.min(state.windowDays * DAY, state.offsetMs + HOUR);
+        refreshDynamic();
+      }
+      if (e.key === 'ArrowLeft') {
+        e.preventDefault();
+        state.offsetMs = Math.max(0, state.offsetMs - HOUR);
+        refreshDynamic();
+      }
+      if (e.key === 'r' || e.key === 'R') {
+        e.preventDefault();
+        $('btn-reset').click();
+      }
+    });
   }
 
   function markSeg(id, key, val) { document.querySelectorAll(`#${id} button`).forEach((b) => b.classList.toggle('on', b.dataset[key] === val)); }
@@ -945,6 +1018,64 @@
       raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick);
+  }
+
+  async function loadLunarPhase() {
+    try {
+      const response = await fetch('/api/lunar-phase');
+      if (!response.ok) return;
+      const data = await response.json();
+      const disc = $('phase-disc');
+      const nameEl = $('phase-name');
+      if (!disc || !nameEl) return;
+      const frac = data.illuminationFraction || 0;
+      const ageDays = data.ageDays || 0;
+      const waxing = ageDays < 29.530589 / 2;
+      const pct = Math.round(frac * 100);
+      disc.innerHTML = '<div class="lit"></div>';
+      const lit = disc.querySelector('.lit');
+      if (lit) {
+        if (waxing) {
+          lit.style.cssText = `position:absolute;top:0;bottom:0;right:0;left:${Math.max(0, 100 - pct)}%;background:#d4d9e0;border-radius:0 50% 50% 0;`;
+        } else {
+          lit.style.cssText = `position:absolute;top:0;bottom:0;left:0;right:${Math.max(0, 100 - pct)}%;background:#d4d9e0;border-radius:50% 0 0 50%;`;
+        }
+      }
+      nameEl.textContent = `${data.phaseName} (${pct}%)`;
+      const indicator = $('phase-indicator');
+      if (indicator) indicator.title = `${data.phaseName} · ${pct}% illuminated · Lunar age ${ageDays.toFixed(1)} d`;
+    } catch (e) {
+      // cosmetic indicator
+    }
+  }
+
+  async function loadAPOD() {
+    try {
+      const response = await fetch('/api/apod');
+      if (!response.ok) return;
+      const data = await response.json();
+      const panel = $('apod-panel');
+      if (!panel || !data.url) return;
+      const img = $('apod-img');
+      const title = $('apod-title');
+      const date = $('apod-date');
+      const explanation = $('apod-explanation');
+      const link = $('apod-link');
+      if (data.media_type === 'image') {
+        img.src = data.hdurl || data.url;
+        img.alt = data.title || 'NASA APOD';
+        img.style.display = '';
+      } else {
+        img.style.display = 'none';
+      }
+      title.textContent = data.title || '';
+      date.textContent = data.date || '';
+      explanation.textContent = data.explanation || '';
+      link.href = data.hdurl || data.url || '#';
+      panel.style.display = '';
+    } catch (e) {
+      // APOD is optional
+    }
   }
 
   // ------------------------------------------------------------------ init
@@ -969,6 +1100,8 @@
       console.error('Terrain profiles unavailable:', error);
     }
     await loadMissionCatalog();
+    loadLunarPhase();
+    loadAPOD();
     const savedTheme = localStorage.getItem('lunasight-theme');
     setTheme(savedTheme || (matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark'));
     if (!loadHash()) {

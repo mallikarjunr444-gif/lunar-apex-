@@ -96,3 +96,128 @@ export function assess(summary, missionDays = 7) {
     score: Math.round((Number(summary.sun.percentUp) + Number(summary.earth.percentUp) + Number(summary.both.percentUp)) / 3)
   };
 }
+
+// High-precision next sunrise, sunset, earthrise, or earthset
+export function nextEvent(site, startDate, body = "sun", horizonDeg = 0, threshold = 0, maxDays = 60, stepMin = 15) {
+  const floor = horizonDeg + threshold;
+  const isUp = (d) => {
+    const sp = subPoints(toJD(d));
+    const ea = elAz(site, body === "sun" ? sp.sun : sp.earth);
+    return ea.el > floor;
+  };
+
+  const t0 = startDate.getTime();
+  const up0 = isUp(startDate);
+  const maxMs = maxDays * 86400000;
+  const stepMs = stepMin * 60000;
+
+  let prev = t0;
+  for (let t = t0 + stepMs; t <= t0 + maxMs; t += stepMs) {
+    const up = isUp(new Date(t));
+    if (up !== up0) {
+      let lo = prev, hi = t;
+      for (let k = 0; k < 28; k++) {
+        const mid = (lo + hi) / 2;
+        if (isUp(new Date(mid)) === up0) lo = mid;
+        else hi = mid;
+      }
+      const eventTime = new Date(hi);
+      return {
+        currentlyUp: up0,
+        type: up0 ? (body === "sun" ? "sunset" : "earthset") : (body === "sun" ? "sunrise" : "earthrise"),
+        at: eventTime.toISOString(),
+        hoursFromNow: +((hi - t0) / 3600000).toFixed(2)
+      };
+    }
+    prev = t;
+  }
+  return {
+    currentlyUp: up0,
+    type: null,
+    at: null,
+    hoursFromNow: null,
+    note: up0 ? `Remains continuously in view for at least ${maxDays} days` : `Remains below horizon for at least ${maxDays} days`
+  };
+}
+
+// Server-side landing window search over candidate dates
+export function landingWindows(site, startDate, days = 30, missionDays = 7, stepHours = 3, lookaheadDays = 30, horizonDeg = 0, thresholds = {}) {
+  const requiredHours = missionDays * 24;
+  const stepMs = 15 * 60000;
+  const totalDays = days + lookaheadDays;
+  const totalSteps = Math.floor(totalDays * 24 * 60 / 15);
+  const t0 = startDate.getTime();
+
+  const sunFloor = horizonDeg + (Number(thresholds.minSunElev) || 0);
+  const earthFloor = horizonDeg + (Number(thresholds.minEarthElev) || 0);
+
+  const sunUp = new Uint8Array(totalSteps + 1);
+  const earthUp = new Uint8Array(totalSteps + 1);
+
+  for (let i = 0; i <= totalSteps; i++) {
+    const d = new Date(t0 + i * stepMs);
+    const sp = subPoints(toJD(d));
+    const s = elAz(site, sp.sun);
+    const e = elAz(site, sp.earth);
+    sunUp[i] = s.el > sunFloor ? 1 : 0;
+    earthUp[i] = e.el > earthFloor ? 1 : 0;
+  }
+
+  const rs = new Uint32Array(totalSteps + 1);
+  const re = new Uint32Array(totalSteps + 1);
+  const rb = new Uint32Array(totalSteps + 1);
+
+  for (let i = totalSteps - 1; i >= 0; i--) {
+    rs[i] = sunUp[i] ? rs[i + 1] + 1 : 0;
+    re[i] = earthUp[i] ? re[i + 1] + 1 : 0;
+    rb[i] = (sunUp[i] && earthUp[i]) ? rb[i + 1] + 1 : 0;
+  }
+
+  const landStepSteps = Math.max(1, Math.round(stepHours * 4));
+  const candidateTouchdowns = Math.floor(days * 24 * 4);
+  const samples = [];
+  const qualifyingWindows = [];
+  let currentWindow = null;
+
+  for (let i = 0; i <= candidateTouchdowns; i += landStepSteps) {
+    const time = new Date(t0 + i * stepMs).toISOString();
+    const sunHours = +(rs[i] * 15 / 60).toFixed(1);
+    const earthHours = +(re[i] * 15 / 60).toFixed(1);
+    const bothHours = +(rb[i] * 15 / 60).toFixed(1);
+    const qualifies = bothHours >= requiredHours;
+
+    samples.push({
+      time,
+      continuousSunHours: sunHours,
+      continuousEarthHours: earthHours,
+      continuousBothHours: bothHours,
+      meetsMission: qualifies
+    });
+
+    if (qualifies) {
+      if (!currentWindow) {
+        currentWindow = { start: time, end: time, durationTouchdowns: 1 };
+      } else {
+        currentWindow.end = time;
+        currentWindow.durationTouchdowns++;
+      }
+    } else if (currentWindow) {
+      qualifyingWindows.push(currentWindow);
+      currentWindow = null;
+    }
+  }
+  if (currentWindow) qualifyingWindows.push(currentWindow);
+
+  return {
+    scanDays: days,
+    missionDays,
+    requiredHours,
+    totalTouchdownDatesTested: samples.length,
+    qualifyingWindowsCount: qualifyingWindows.length,
+    qualifyingTouchdownsCount: samples.filter((s) => s.meetsMission).length,
+    qualifyingSharePercent: samples.length ? +((samples.filter((s) => s.meetsMission).length / samples.length) * 100).toFixed(1) : 0,
+    qualifyingWindows,
+    earliestQualifyingDate: qualifyingWindows[0] ? qualifyingWindows[0].start : null,
+    samples: samples.slice(0, 100)
+  };
+}

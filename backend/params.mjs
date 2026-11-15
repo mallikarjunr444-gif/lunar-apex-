@@ -3,7 +3,7 @@ import { RANGES, LIMITS } from "./config.mjs";
 import { HttpError } from "./http.mjs";
 import { SITES } from "./sites.mjs";
 
-const clamp = (value, { min, max, fallback }) => {
+export const clampRange = (value, { min, max, fallback }) => {
   const n = value !== null && value !== "" && Number.isFinite(+value) ? +value : fallback;
   return Math.min(Math.max(n, min), max);
 };
@@ -28,12 +28,12 @@ export function parseAnalysisParams(q) {
   if (!["analytic", "horizons"].includes(source)) throw new HttpError(400, "invalid_source", "source must be analytic or horizons.");
   return {
     start, source,
-    hours: clamp(q.get("hours"), RANGES.hours),
-    stepMin: clamp(q.get("step"), RANGES.step),
-    horizon: clamp(q.get("horizon"), RANGES.horizon),
-    minSunElev: clamp(q.get("minSun"), RANGES.minSun),
-    minEarthElev: clamp(q.get("minEarth"), RANGES.minEarth),
-    missionDays: clamp(q.get("missionDays"), RANGES.missionDays)
+    hours: clampRange(q.get("hours"), RANGES.hours),
+    stepMin: clampRange(q.get("step"), RANGES.step),
+    horizon: clampRange(q.get("horizon"), RANGES.horizon),
+    minSunElev: clampRange(q.get("minSun"), RANGES.minSun),
+    minEarthElev: clampRange(q.get("minEarth"), RANGES.minEarth),
+    missionDays: clampRange(q.get("missionDays"), RANGES.missionDays)
   };
 }
 
@@ -63,4 +63,14 @@ export function parseScenario(body) {
     throw new HttpError(400, "invalid_scenario", "Provide a valid scenario date, lunar latitude/longitude, and elevation in kilometres.");
   }
   return { date, site: { lat, lon: wrapLon(lon), h } };
+}
+
+export function parseStart(q) {
+  const start = q.get("start") ? new Date(q.get("start")) : new Date();
+  if (Number.isNaN(start.getTime())) throw new HttpError(400, "invalid_start", "Invalid start date (use ISO 8601).");
+  return start;
+}
+
+export function parseThresholds(q) {
+  return { minSun: clampRange(q.get("minSun"), RANGES.minSun), minEarth: clampRange(q.get("minEarth"), RANGES.minEarth) };
 }

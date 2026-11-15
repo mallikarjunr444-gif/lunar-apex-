@@ -5,11 +5,14 @@ import { assess, elAz, series, subPoints, summarize, toJD } from "./ephemeris.mj
 import { horizonsElAz, horizonsSeries } from "./horizons.mjs";
 
 const cache = new Map();   // insertion-ordered: oldest entry is evicted first
+let hits = 0, misses = 0;
+export const cacheStats = () => ({ size: cache.size, hits, misses, hitRatePercent: hits + misses ? +((hits / (hits + misses)) * 100).toFixed(1) : 0 });
 
 export async function computeTimeline(site, params) {
   const key = [site.lat, site.lon, site.h || 0, params.start.toISOString(), params.hours, params.stepMin, params.horizon,
     params.minSunElev, params.minEarthElev, params.source].join("|");
-  if (cache.has(key)) return cache.get(key);
+  if (cache.has(key)) { hits++; return cache.get(key); }
+  misses++;
   let samples, used = "analytic";
   if (params.source === "horizons") {
     try {
