@@ -8,6 +8,20 @@
   const LUNATION = LE.SYNODIC_DAYS * DAY;
   const store = new LE.FrameStore();
   const $ = (id) => document.getElementById(id);
+
+  function toast(message, type = 'info', durationMs = 3000) {
+    const container = document.getElementById('toast-container') || document.body;
+    const el = document.createElement('div');
+    el.className = `toast ${type}`;
+    el.textContent = message;
+    container.appendChild(el);
+    setTimeout(() => {
+      el.classList.add('removing');
+      el.addEventListener('animationend', () => el.remove(), { once: true });
+    }, durationMs);
+    return el;
+  }
+
   let uid = 1;
 
   const state = {

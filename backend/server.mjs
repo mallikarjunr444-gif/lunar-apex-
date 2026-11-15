@@ -215,22 +215,22 @@ async function api(req, res, url) {
   }
   if (url.pathname === "/api/stats") return json(res, 200, { uptime: Math.floor((Date.now() - startedAt) / 1000), cacheSize: cache.size, sites: SITES.length, version: "2.0.0" }, req);
   if (url.pathname === "/api/sites") return json(res, 200, SITES, req);
-  if (url.pathname === "/api/resources") return json(res, 200, RESOURCES);
-  if (url.pathname === "/api/evidence") return json(res, 200, EVIDENCE);
-  if (url.pathname === "/api/terrain/profiles") return json(res, 200, TERRAIN);
+  if (url.pathname === "/api/resources") return json(res, 200, RESOURCES, req);
+  if (url.pathname === "/api/evidence") return json(res, 200, EVIDENCE, req);
+  if (url.pathname === "/api/terrain/profiles") return json(res, 200, TERRAIN, req);
   if (url.pathname === "/api/apod") {
     try {
       const response = await fetch(`https://api.nasa.gov/planetary/apod?api_key=${NASA_API_KEY}`, { signal: AbortSignal.timeout(8000) });
-      return json(res, response.status, await response.json());
+      return json(res, response.status, await response.json(), req);
     } catch (error) {
-      return json(res, 502, { error: error.message });
+      return json(res, 502, { error: error.message }, req);
     }
   }
 
   const start = q.get("start") ? new Date(q.get("start")) : new Date();
-  if (Number.isNaN(start.getTime())) return json(res, 400, { error: "Invalid start date (use ISO 8601)" });
+  if (Number.isNaN(start.getTime())) return json(res, 400, { error: "Invalid start date (use ISO 8601)" }, req);
   const source = q.get("source") || "analytic";
-  if (!["analytic", "horizons"].includes(source)) return json(res, 400, { error: "source must be analytic or horizons" });
+  if (!["analytic", "horizons"].includes(source)) return json(res, 400, { error: "source must be analytic or horizons" }, req);
   const params = {
     start,
     hours: clamp(q.get("hours"), 1, 2160, 720),
@@ -243,21 +243,21 @@ async function api(req, res, url) {
   };
   if (url.pathname === "/api/timeline") {
     const site = parseSite(q.get("site"));
-    if (!site) return json(res, 400, { error: "Provide ?site=<id> or ?site=<lat>:<lon>" });
-    return json(res, 200, await computeOne(site, params));
+    if (!site) return json(res, 400, { error: "Provide ?site=<id> or ?site=<lat>:<lon>" }, req);
+    return json(res, 200, await computeOne(site, params), req);
   }
   if (url.pathname === "/api/compare" || url.pathname === "/api/evaluate") {
     const sites = (q.get("sites") || q.get("site") || "").split(",").filter(Boolean).slice(0, 5).map(parseSite);
-    if (!sites.length || sites.includes(null)) return json(res, 400, { error: "Provide ?sites=id1,id2 (ids or lat:lon, max 5)" });
+    if (!sites.length || sites.includes(null)) return json(res, 400, { error: "Provide ?sites=id1,id2 (ids or lat:lon, max 5)" }, req);
     const results = await Promise.all(sites.map((site) => computeOne(site, params)));
-    if (url.pathname === "/api/compare") return json(res, 200, results);
+    if (url.pathname === "/api/compare") return json(res, 200, results, req);
     return json(res, 200, {
       request: { start: start.toISOString(), hours: params.hours, stepMin: params.stepMin, missionDays: params.missionDays, source, horizonDeg: params.horizon, minSunElev: params.minSunElev, minEarthElev: params.minEarthElev },
       ranked: results.slice().sort((a, b) => b.mission.score - a.mission.score),
       results
-    });
+    }, req);
   }
-  return json(res, 404, { error: "Not found" });
+  return json(res, 404, { error: "Not found" }, req);
 }
 
 export const server = http.createServer(async (req, res) => {
