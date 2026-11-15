@@ -11,6 +11,11 @@
   --text: #172033; --mute: #53617a; --faint: #71809a; --accent: #315cc8;
   color-scheme: light;
 }
+*, *::before, *::after {
+  transition: background-color 0.25s ease, border-color 0.25s ease, color 0.15s ease;
+}
+/* but don't transition canvas or complex elements */
+canvas, .sky, input, select, button { transition: none; }
 * { box-sizing: border-box; }
 html { background: var(--bg); }
 body {
@@ -200,3 +205,49 @@ main > * { min-width: 0; }
 .csa-list { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 8px; }
 .csa-list li { display: grid; gap: 2px; padding: 9px 11px; border: 1px solid var(--line); border-radius: 9px; background: var(--bg2); }
 .csa-list li span { color: var(--mute); font-size: 12.5px; }
+
+/* ── A. Toast / notification system ── */
+.toast-container { position: fixed; bottom: 24px; right: 24px; z-index: 100; display: flex; flex-direction: column; gap: 8px; pointer-events: none; }
+.toast { background: var(--panel); border: 1px solid var(--line2); border-radius: 10px; padding: 10px 16px; font-size: 13px; color: var(--text); box-shadow: 0 4px 20px rgba(0,0,0,.4); pointer-events: all; display: flex; align-items: center; gap: 10px; max-width: 340px; animation: toast-in 0.25s ease; }
+.toast.success { border-left: 3px solid var(--ok); }
+.toast.error { border-left: 3px solid var(--bad); }
+.toast.info { border-left: 3px solid var(--accent); }
+@keyframes toast-in { from { opacity: 0; transform: translateX(20px); } to { opacity: 1; transform: translateX(0); } }
+@keyframes toast-out { to { opacity: 0; transform: translateX(20px); } }
+.toast.removing { animation: toast-out 0.2s ease forwards; }
+
+/* ── B. Lunar phase indicator ── */
+.phase-indicator { display: flex; align-items: center; gap: 8px; padding: 5px 12px; border: 1px solid var(--line2); border-radius: 20px; background: var(--bg2); font-size: 12px; color: var(--mute); cursor: default; user-select: none; }
+.phase-disc { width: 18px; height: 18px; border-radius: 50%; border: 1px solid var(--mute); position: relative; overflow: hidden; background: #030609; flex: none; }
+.phase-disc .lit { position: absolute; top: 0; bottom: 0; background: #d4d9e0; }
+
+/* ── C. Better cards ── */
+.card { transition: box-shadow 0.2s ease; }
+.card:hover { box-shadow: 0 4px 24px rgba(0,0,0,.35); }
+.card-score { display: inline-flex; align-items: center; justify-content: center; width: 36px; height: 36px; border-radius: 50%; font-size: 15px; font-weight: 700; border: 2px solid currentColor; }
+.card-score.score-high { color: var(--ok); border-color: var(--ok); }
+.card-score.score-mid { color: var(--sun); border-color: var(--sun); }
+.card-score.score-low { color: var(--bad); border-color: var(--bad); }
+
+/* ── D. APOD panel ── */
+.apod-panel { border: 1px solid var(--line); border-radius: var(--r); background: var(--panel); overflow: hidden; }
+.apod-img { width: 100%; max-height: 320px; object-fit: cover; display: block; }
+.apod-body { padding: 12px 14px; }
+.apod-title { font-size: 15px; font-weight: 600; margin-bottom: 4px; }
+.apod-date { color: var(--mute); font-size: 11px; margin-bottom: 8px; }
+.apod-explanation { color: var(--mute); font-size: 12.5px; line-height: 1.55; display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
+.apod-link { color: var(--accent); font-size: 12px; margin-top: 6px; display: inline-block; }
+
+/* ── E. Keyboard shortcut hint ── */
+.kbd { display: inline-block; padding: 1px 5px; border: 1px solid var(--line2); border-radius: 4px; font-family: var(--mono); font-size: 10px; color: var(--mute); background: var(--bg2); }
+.shortcuts-hint { color: var(--faint); font-size: 11px; display: flex; gap: 10px; flex-wrap: wrap; margin-top: 6px; }
+
+/* ── F. Improved table with sticky header ── */
+thead { position: sticky; top: 0; z-index: 2; background: var(--panel); }
+
+/* ── G. Loading skeleton ── */
+@keyframes shimmer { 0% { background-position: -400px 0; } 100% { background-position: 400px 0; } }
+.skeleton { border-radius: 6px; background: linear-gradient(90deg, var(--bg2) 25%, var(--line) 50%, var(--bg2) 75%); background-size: 400px 100%; animation: shimmer 1.4s infinite; height: 1em; }
+
+/* ── H. Stats grid 3-col option ── */
+.stats.three-col { grid-template-columns: 1fr 1fr 1fr; }

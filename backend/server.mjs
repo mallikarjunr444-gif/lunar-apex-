@@ -141,7 +141,7 @@ async function compareHorizons(req, res) {
   try {
     body = await readJson(req);
   } catch (error) {
-    return json(res, 400, { error: error.message === "Unexpected end of JSON input" ? "Request body must be valid JSON" : error.message });
+    return json(res, 400, { error: error.message === "Unexpected end of JSON input" ? "Request body must be valid JSON" : error.message }, req);
   }
   const scenario = body && body.scenario;
   const date = scenario && new Date(scenario.date);
@@ -150,7 +150,7 @@ async function compareHorizons(req, res) {
   const h = scenario && scenario.h == null ? 0 : Number(scenario && scenario.h);
   if (!scenario || !Number.isFinite(date.getTime()) || !Number.isFinite(lat) || Math.abs(lat) > 90
       || !Number.isFinite(lon) || Math.abs(lon) > 360 || !Number.isFinite(h) || h < -10 || h > 100) {
-    return json(res, 400, { error: "Provide a valid scenario date, lunar latitude/longitude, and elevation in kilometres." });
+    return json(res, 400, { error: "Provide a valid scenario date, lunar latitude/longitude, and elevation in kilometres." }, req);
   }
   const site = { lat, lon: ((lon + 540) % 360) - 180, h };
   const stop = new Date(date.getTime() + 60_000);
@@ -169,16 +169,16 @@ async function compareHorizons(req, res) {
         sun: compareAngles(elAz(site, points.sun), sunRows[0]),
         earth: compareAngles(elAz(site, points.earth), earthRows[0])
       }
-    });
+    }, req);
   } catch (error) {
-    return json(res, 502, { error: `JPL Horizons comparison unavailable: ${error.message}` });
+    return json(res, 502, { error: `JPL Horizons comparison unavailable: ${error.message}` }, req);
   }
 }
 
 async function api(req, res, url) {
   const q = url.searchParams;
   if (url.pathname === "/api/horizons/compare") {
-    if (req.method !== "POST") return json(res, 405, { error: "Use POST for this endpoint." });
+    if (req.method !== "POST") return json(res, 405, { error: "Use POST for this endpoint." }, req);
     return compareHorizons(req, res);
   }
   if (req.method !== "GET" && req.method !== "HEAD") {
@@ -272,7 +272,7 @@ export const server = http.createServer(async (req, res) => {
       return await api(req, res, url);
     } catch (error) {
       if (res.headersSent) return res.end();
-      return json(res, 500, { error: error.message });
+      return json(res, 500, { error: error.message }, req);
     }
   }
   if (!["GET", "HEAD"].includes(req.method)) {
@@ -296,7 +296,7 @@ export const server = http.createServer(async (req, res) => {
     fs.createReadStream(file).pipe(res);
   } catch (error) {
     if (res.headersSent) return res.end();
-    return json(res, 500, { error: error.message });
+    return json(res, 500, { error: error.message }, req);
   }
 });
 

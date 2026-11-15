@@ -31,6 +31,27 @@ const resources = [
     url: 'https://www.asc-csa.gc.ca/eng/astronomy/moon-exploration/',
     summary: 'Read about lunar exploration, Canadian technologies, research, and Artemis participation.',
     role: 'Mission and education context'
+  },
+  {
+    id: 'pds',
+    name: 'NASA Planetary Data System',
+    url: 'https://pds.nasa.gov/',
+    summary: 'NASA\'s archive of planetary science data, including LOLA DEMs and laser altimetry used for terrain horizon profiles.',
+    role: 'Science data archive'
+  },
+  {
+    id: 'lola',
+    name: 'LOLA Data Archive',
+    url: 'https://imbrium.mit.edu/',
+    summary: 'Lunar Orbiter Laser Altimeter data at MIT PDS node. Source DEMs used by SIGHTLINE to derive terrain horizon profiles.',
+    role: 'Terrain elevation data'
+  },
+  {
+    id: 'naif',
+    name: 'NASA NAIF SPICE',
+    url: 'https://naif.jpl.nasa.gov/naif/',
+    summary: 'Planetary geometry toolkit: kernels and tools for high-precision planetary positions and frames used by SIGHTLINE.',
+    role: 'Precision geometry'
   }
 ];
 
@@ -41,7 +62,9 @@ const csaTopics = [
   { name: 'The Artemis campaign', url: 'https://www.asc-csa.gc.ca/eng/astronomy/moon-exploration/artemis-missions.asp', summary: 'Canadian astronauts are expected to take part in the Artemis Moon missions.' },
   { name: 'Canada\u2019s role in Moon exploration', url: 'https://www.asc-csa.gc.ca/eng/astronomy/moon-exploration/canada-role.asp', summary: 'Canadian contributions to lunar technology, science and missions.' },
   { name: 'From Apollo to Artemis', url: 'https://www.asc-csa.gc.ca/eng/astronomy/moon-exploration/from-apollo-to-artemis-the-evolution-of-crewed-lunar-missions.asp', summary: 'How crewed lunar missions have evolved \u2014 background for the Apollo sites in this tool.' },
-  { name: 'Lunar Exploration Accelerator Program (LEAP)', url: 'https://www.asc-csa.gc.ca/eng/funding-programs/programs/leap/', summary: 'Funding for Canadian lunar science and technology activities.' }
+  { name: 'Lunar Exploration Accelerator Program (LEAP)', url: 'https://www.asc-csa.gc.ca/eng/funding-programs/programs/leap/', summary: 'Funding for Canadian lunar science and technology activities.' },
+  { name: 'Science on the Moon', url: 'https://www.asc-csa.gc.ca/eng/astronomy/moon-exploration/science.asp', summary: 'What Canadian scientists hope to learn from lunar exploration.' },
+  { name: 'Technologies for the Moon', url: 'https://www.asc-csa.gc.ca/eng/astronomy/moon-exploration/technologies.asp', summary: 'Canadian technology contributions to lunar exploration.' }
 ];
 
 const researchGroups = [

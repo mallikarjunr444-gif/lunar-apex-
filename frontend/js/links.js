@@ -29,5 +29,9 @@
     return `${QM}?prjExtent=${[cx - hw, cy - hh, cx + hw, cy + hh].map(r3).join('%2C')}${QM_TAIL}`;
   }
   const trekURL = () => 'https://trek.nasa.gov/moon/';   // no documented coordinate deep link: copy the coordinates instead
-  return { quickmapBase, quickmapURL, trekURL };
+  function trekCoordURL(lat, lon) {
+    return `https://trek.nasa.gov/moon/#v=0.1&x=${lon.toFixed(4)}&y=${lat.toFixed(4)}&z=8&p=urn%3Aogc%3Adef%3Acrs%3AEPSG%3A%3A104903&d=&locale=&b=moon&e=-90%2C-90%2C90%2C90&sfz=&w=`;
+  }
+  const clpsURL = () => 'https://github.com/localizedprojects/CLPS-MOON-BROWSER';
+  return { quickmapBase, quickmapURL, trekURL, trekCoordURL, clpsURL };
 }));
