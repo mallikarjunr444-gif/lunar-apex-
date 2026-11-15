@@ -2,9 +2,10 @@ import http from "node:http";
 import fs from "node:fs";
 import path from "node:path";
 import zlib from "node:zlib";
+import crypto from "node:crypto";
 import { fileURLToPath } from "node:url";
 import { SITES } from "./sites.mjs";
-import { assess, elAz, series, subPoints, summarize, toJD } from "./ephemeris.mjs";
+import { assess, elAz, series, subPoints, summarize, toJD, nextEvent, landingWindows } from "./ephemeris.mjs";
 import { horizonsElAz, horizonsSeries } from "./horizons.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -51,27 +52,69 @@ const MIME = {
   ".svg": "image/svg+xml", ".png": "image/png", ".ico": "image/x-icon"
 };
 const headers = { "X-Content-Type-Options": "nosniff", "Referrer-Policy": "strict-origin-when-cross-origin" };
+
+// TTL Cache & hit/miss metrics
+let cacheHits = 0;
+let cacheMisses = 0;
+const CACHE_TTL_MS = 60 * 60 * 1000;
 const cache = new Map();
+
+function getCached(key) {
+  const item = cache.get(key);
+  if (!item) {
+    cacheMisses++;
+    return null;
+  }
+  if (Date.now() > item.expiresAt) {
+    cache.delete(key);
+    cacheMisses++;
+    return null;
+  }
+  cacheHits++;
+  return item.value;
+}
+
+function setCached(key, value, ttlMs = CACHE_TTL_MS) {
+  cache.set(key, { value, expiresAt: Date.now() + ttlMs });
+  if (cache.size > 300) {
+    cache.delete(cache.keys().next().value);
+  }
+}
+
 const clamp = (value, min, max, fallback) => Math.min(Math.max(Number.isFinite(+value) && value !== null && value !== "" ? +value : fallback, min), max);
 
 function json(res, code, body, req) {
   const payload = JSON.stringify(body);
-  const acceptEncoding = (req || res.req) && ((req || res.req).headers["accept-encoding"] || "");
+  const etag = `W/"${crypto.createHash('md5').update(payload).digest('hex')}"`;
+  const ifNoneMatch = (req || res.req)?.headers?.["if-none-match"];
+
+  const resHeaders = {
+    ...headers,
+    "Content-Type": "application/json; charset=utf-8",
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Methods": "GET, HEAD, POST, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type, Accept-Encoding, If-None-Match",
+    "ETag": etag,
+    "Cache-Control": code === 200 ? "public, max-age=60" : "no-store"
+  };
+
+  if (code === 200 && ifNoneMatch === etag && ((req || res.req)?.method === "GET" || (req || res.req)?.method === "HEAD")) {
+    res.writeHead(304, resHeaders);
+    return res.end();
+  }
+
+  const acceptEncoding = (req || res.req)?.headers?.["accept-encoding"] || "";
   if (acceptEncoding.includes("gzip")) {
     const compressed = zlib.gzipSync(Buffer.from(payload, "utf8"));
     res.writeHead(code, {
-      ...headers, "Content-Type": "application/json; charset=utf-8",
-      "Cache-Control": "no-store", "Access-Control-Allow-Origin": "*",
+      ...resHeaders,
       "Content-Encoding": "gzip"
     });
-    if ((req || res.req).method === "HEAD") res.end();
+    if ((req || res.req)?.method === "HEAD") res.end();
     else res.end(compressed);
   } else {
-    res.writeHead(code, {
-      ...headers, "Content-Type": "application/json; charset=utf-8",
-      "Cache-Control": "no-store", "Access-Control-Allow-Origin": "*"
-    });
-    if ((req || res.req).method === "HEAD") res.end();
+    res.writeHead(code, resHeaders);
+    if ((req || res.req)?.method === "HEAD") res.end();
     else res.end(payload);
   }
 }
@@ -104,7 +147,8 @@ function parseSite(value) {
 async function computeOne(site, params) {
   const key = [site.lat, site.lon, site.h || 0, params.start.toISOString(), params.hours, params.stepMin, params.horizon,
     params.minSunElev, params.minEarthElev, params.source].join("|");
-  if (cache.has(key)) return cache.get(key);
+  const cached = getCached(key);
+  if (cached) return cached;
   let samples, used = "analytic";
   if (params.source === "horizons") {
     try {
@@ -122,8 +166,7 @@ async function computeOne(site, params) {
     thresholds: { minSunElev: params.minSunElev, minEarthElev: params.minEarthElev },
     mission: assess(summary, params.missionDays), summary, samples
   };
-  cache.set(key, result);
-  if (cache.size > 200) cache.delete(cache.keys().next().value);
+  setCached(key, result);
   return result;
 }
 
@@ -189,7 +232,9 @@ async function api(req, res, url) {
   if (url.pathname === "/api/lunar-phase") {
     const SYNODIC = 29.530589;
     const JD_NEW_MOON = 2451550.1;
-    const jd = toJD(new Date());
+    // Align to the current minute so responses are stable and cacheable
+    const nowMinute = new Date(Math.floor(Date.now() / 60000) * 60000);
+    const jd = toJD(nowMinute);
     const sp = subPoints(jd);
     const ageDays = (((jd - JD_NEW_MOON) % SYNODIC) + SYNODIC) % SYNODIC;
     const frac = ageDays / SYNODIC;
@@ -210,10 +255,97 @@ async function api(req, res, url) {
   if (url.pathname.startsWith("/api/sites/")) {
     const id = url.pathname.slice("/api/sites/".length);
     const site = SITES.find((s) => s.id === id);
-    if (!site) return json(res, 404, { error: `Site '${id}' not found` }, req);
+    if (!site) return json(res, 404, { error: `Site '${id}' not found`, code: "ERR_SITE_NOT_FOUND" }, req);
     return json(res, 200, site, req);
   }
-  if (url.pathname === "/api/stats") return json(res, 200, { uptime: Math.floor((Date.now() - startedAt) / 1000), cacheSize: cache.size, sites: SITES.length, version: "2.0.0" }, req);
+  if (url.pathname === "/api/stats") {
+    const totalReqs = cacheHits + cacheMisses;
+    return json(res, 200, {
+      uptimeSeconds: Math.floor((Date.now() - startedAt) / 1000),
+      cache: {
+        size: cache.size,
+        hits: cacheHits,
+        misses: cacheMisses,
+        hitRatePercent: totalReqs ? +((cacheHits / totalReqs) * 100).toFixed(1) : 0
+      },
+      sitesCount: SITES.length,
+      version: "2.1.0"
+    }, req);
+  }
+  if (url.pathname === "/api/sunrise-next") {
+    const site = parseSite(q.get("site"));
+    if (!site) return json(res, 400, { error: "Provide ?site=<id> or ?site=<lat>:<lon>", code: "ERR_INVALID_SITE" }, req);
+    const start = q.get("start") ? new Date(q.get("start")) : new Date();
+    if (Number.isNaN(start.getTime())) return json(res, 400, { error: "Invalid start date (use ISO 8601)", code: "ERR_INVALID_DATE" }, req);
+    const horizon = clamp(q.get("horizon"), -5, 30, 0);
+    const minSun = clamp(q.get("minSun"), -5, 30, 0);
+    const minEarth = clamp(q.get("minEarth"), -5, 30, 0);
+    const maxDays = clamp(q.get("maxDays"), 1, 90, 60);
+
+    const sp = subPoints(toJD(start));
+    const currentSun = elAz(site, sp.sun);
+    const currentEarth = elAz(site, sp.earth);
+
+    const nextSun = nextEvent(site, start, "sun", horizon, minSun, maxDays);
+    const nextEarth = nextEvent(site, start, "earth", horizon, minEarth, maxDays);
+
+    return json(res, 200, {
+      site,
+      from: start.toISOString(),
+      horizonDeg: horizon,
+      thresholds: { minSun, minEarth },
+      sun: {
+        currentElevation: +currentSun.el.toFixed(2),
+        currentAzimuth: +currentSun.az.toFixed(2),
+        currentlyUp: nextSun.currentlyUp,
+        nextTransition: nextSun.type ? {
+          type: nextSun.type,
+          time: nextSun.at,
+          hoursFromNow: nextSun.hoursFromNow
+        } : null,
+        note: nextSun.note || null
+      },
+      earth: {
+        currentElevation: +currentEarth.el.toFixed(2),
+        currentAzimuth: +currentEarth.az.toFixed(2),
+        currentlyUp: nextEarth.currentlyUp,
+        nextTransition: nextEarth.type ? {
+          type: nextEarth.type,
+          time: nextEarth.at,
+          hoursFromNow: nextEarth.hoursFromNow
+        } : null,
+        note: nextEarth.note || null
+      }
+    }, req);
+  }
+  if (url.pathname === "/api/landing-windows") {
+    const site = parseSite(q.get("site"));
+    if (!site) return json(res, 400, { error: "Provide ?site=<id> or ?site=<lat>:<lon>", code: "ERR_INVALID_SITE" }, req);
+    const start = q.get("start") ? new Date(q.get("start")) : new Date();
+    if (Number.isNaN(start.getTime())) return json(res, 400, { error: "Invalid start date (use ISO 8601)", code: "ERR_INVALID_DATE" }, req);
+    const days = clamp(q.get("days"), 7, 365, 30);
+    const missionDays = clamp(q.get("missionDays"), 0.5, 60, 7);
+    const stepHours = clamp(q.get("stepHours"), 1, 24, 3);
+    const horizon = clamp(q.get("horizon"), -5, 30, 0);
+    const minSun = clamp(q.get("minSun"), -5, 30, 0);
+    const minEarth = clamp(q.get("minEarth"), -5, 30, 0);
+
+    const windows = landingWindows(site, start, days, missionDays, stepHours, 30, horizon, { minSunElev: minSun, minEarthElev: minEarth });
+    return json(res, 200, { site, start: start.toISOString(), ...windows }, req);
+  }
+  if (url.pathname === "/api/elevation-profile") {
+    const site = parseSite(q.get("site"));
+    if (!site) return json(res, 400, { error: "Provide ?site=<id> or ?site=<lat>:<lon>", code: "ERR_INVALID_SITE" }, req);
+    const terrainProfile = site.terrainProfileId ? TERRAIN.profiles.find((p) => p.id === site.terrainProfileId) : null;
+    return json(res, 200, {
+      site,
+      hasTerrainData: Boolean(terrainProfile),
+      profileId: terrainProfile ? terrainProfile.id : null,
+      mastHeightM: terrainProfile ? terrainProfile.mastHeightM : null,
+      azimuthSamples: terrainProfile ? terrainProfile.horizonElevationDeg.length : 360,
+      profile: terrainProfile ? terrainProfile.horizonElevationDeg : new Array(360).fill(0)
+    }, req);
+  }
   if (url.pathname === "/api/sites") return json(res, 200, SITES, req);
   if (url.pathname === "/api/resources") return json(res, 200, RESOURCES, req);
   if (url.pathname === "/api/evidence") return json(res, 200, EVIDENCE, req);
@@ -261,6 +393,16 @@ async function api(req, res, url) {
 }
 
 export const server = http.createServer(async (req, res) => {
+  if (req.method === "OPTIONS") {
+    res.writeHead(204, {
+      ...headers,
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Methods": "GET, HEAD, POST, OPTIONS",
+      "Access-Control-Allow-Headers": "Content-Type, Accept-Encoding, If-None-Match",
+      "Access-Control-Max-Age": "86400"
+    });
+    return res.end();
+  }
   const url = new URL(req.url || "/", `http://${req.headers.host || "localhost"}`);
   const isComparison = url.pathname === "/api/horizons/compare";
   if (url.pathname.startsWith("/api/")) {
