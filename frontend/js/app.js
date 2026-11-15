@@ -239,8 +239,8 @@
       <div class="site-resources">
         <div class="resource-coords">Map coordinates: ${sc.lat.toFixed(4)}° N+, ${sc.lon.toFixed(4)}° E+${provenance ? ` · ${provenance}` : ''}</div>
         <div class="resource-actions">
-          <a class="btn small" href="https://quickmap.lroc.asu.edu/" target="_blank" rel="noopener">QuickMap</a>
-          <a class="btn small" href="https://trek.nasa.gov/moon/" target="_blank" rel="noopener">Moon Trek</a>
+          <a class="btn small" data-link="quickmap" href="${window.LunarLinks.quickmapURL(sc.lat, sc.lon)}" target="_blank" rel="noopener" title="Open Quickmap (Earth-shadow view) centred on these coordinates">QuickMap here</a>
+          <a class="btn small" data-link="trek" href="${window.LunarLinks.trekURL()}" target="_blank" rel="noopener" title="Open Moon Trek, then paste the copied coordinates into its search">Moon Trek</a>
           <button class="btn small" data-act="copy-coordinates">Copy coordinates</button>
           <button class="btn small" data-act="horizons">Check with JPL Horizons</button>
         </div>
@@ -268,11 +268,22 @@
     CH.drawPolarMap($('polar-map'), sites, state.scenarios, state.mapScenarioId);
   }
 
+  // Keep the coordinate label and the Quickmap deep link in step with edits to lat/lon.
+  function updateSiteLinks(sc, el) {
+    const k = `${sc.lat}|${sc.lon}`, box = el.querySelector('.site-resources');
+    if (!box || box.dataset.k === k) return;
+    box.dataset.k = k;
+    el.querySelector('[data-link="quickmap"]').href = window.LunarLinks.quickmapURL(sc.lat, sc.lon);
+    const label = el.querySelector('.resource-coords'), prov = label.textContent.split(' \u00b7 ')[1];
+    label.textContent = `Map coordinates: ${sc.lat.toFixed(4)}\u00b0 N+, ${sc.lon.toFixed(4)}\u00b0 E+${prov ? ' \u00b7 ' + prov : ''}`;
+  }
+
   function updateCards() {
     const now = performance.now();
     state.scenarios.forEach((sc) => {
       const el = document.querySelector(`.card[data-id="${sc.id}"]`);
       if (!el) return;
+      updateSiteLinks(sc, el);
       const horizonsResult = el.querySelector('.horizons-result');
       const key = horizonsKey(sc);
       if (horizonsResult.dataset.resultKey && horizonsResult.dataset.resultKey !== key) {
@@ -556,6 +567,9 @@
         <p>${esc(resource.summary)}</p>
         <a href="${esc(resource.url)}" target="_blank" rel="noopener">Open ${esc(resource.name)} ↗</a>
       </article>`
+    ).join('');
+    $('csa-topics').innerHTML = window.LUNAR_CSA_TOPICS.map((t) =>
+      `<li><a href="${esc(t.url)}" target="_blank" rel="noopener">${esc(t.name)} \u2197</a><span>${esc(t.summary)}</span></li>`
     ).join('');
     $('research-groups').innerHTML = window.LUNAR_RESEARCH_GROUPS.map((group) =>
       `<section class="research-group">

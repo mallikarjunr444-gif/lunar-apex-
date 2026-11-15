@@ -1,12 +1,14 @@
 (function (root) {
 'use strict';
 
+const QUICKMAP_VIEW = 'https://quickmap.lroc.im-ldi.com/?prjExtent=-3335249.7991968%2C-1737400%2C3335249.7991968%2C1737400&earthShadowEnabled=true&proj=10&stack=3314&defs=N4IgzGCMAsIFygPYAcCGBjAlgFwJ70gF9Cg';
+
 const resources = [
   {
     id: 'quickmap',
     name: 'LROC QuickMap',
-    url: 'https://quickmap.lroc.asu.edu/',
-    summary: 'Explore LRO imagery, elevation layers, and local terrain that can raise or block the horizon.',
+    url: QUICKMAP_VIEW,
+    summary: 'Opens the project Quickmap view (Earth-shadow overlay on). Use its elevation layers to see the terrain that raises a horizon, then import it as a profile here.',
     role: 'Terrain and imagery'
   },
   {
@@ -30,6 +32,16 @@ const resources = [
     summary: 'Read about lunar exploration, Canadian technologies, research, and Artemis participation.',
     role: 'Mission and education context'
   }
+];
+
+const csaTopics = [
+  { name: 'Canadarm3', url: 'https://www.asc-csa.gc.ca/eng/canadarm3/', summary: 'Canada\u2019s robotic system for the Lunar Gateway.' },
+  { name: 'Lunar Gateway', url: 'https://www.asc-csa.gc.ca/eng/astronomy/moon-exploration/gateway.asp', summary: 'The crewed lunar-orbit station: the next major international collaboration in human exploration.' },
+  { name: 'Canadian utility rover', url: 'https://www.asc-csa.gc.ca/eng/astronomy/moon-exploration/canadian-utility-rover-on-the-moon.asp', summary: 'A versatile rover Canada will develop for Moon exploration.' },
+  { name: 'The Artemis campaign', url: 'https://www.asc-csa.gc.ca/eng/astronomy/moon-exploration/artemis-missions.asp', summary: 'Canadian astronauts are expected to take part in the Artemis Moon missions.' },
+  { name: 'Canada\u2019s role in Moon exploration', url: 'https://www.asc-csa.gc.ca/eng/astronomy/moon-exploration/canada-role.asp', summary: 'Canadian contributions to lunar technology, science and missions.' },
+  { name: 'From Apollo to Artemis', url: 'https://www.asc-csa.gc.ca/eng/astronomy/moon-exploration/from-apollo-to-artemis-the-evolution-of-crewed-lunar-missions.asp', summary: 'How crewed lunar missions have evolved \u2014 background for the Apollo sites in this tool.' },
+  { name: 'Lunar Exploration Accelerator Program (LEAP)', url: 'https://www.asc-csa.gc.ca/eng/funding-programs/programs/leap/', summary: 'Funding for Canadian lunar science and technology activities.' }
 ];
 
 const researchGroups = [
@@ -114,6 +126,7 @@ const researchGroups = [
 ];
 
 root.LUNAR_RESOURCES = resources;
+root.LUNAR_CSA_TOPICS = csaTopics;
 root.LUNAR_RESEARCH_GROUPS = researchGroups;
-if (typeof module === 'object' && module.exports) module.exports = { resources, researchGroups };
+if (typeof module === 'object' && module.exports) module.exports = { resources, researchGroups, csaTopics };
 }(typeof window !== 'undefined' ? window : globalThis));

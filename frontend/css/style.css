@@ -194,3 +194,9 @@ footer ul { margin: 8px 0 0; padding-left: 18px; display: grid; gap: 6px; }
 main > * { min-width: 0; }
 .seg { flex-wrap: wrap; }
 @media (max-width: 640px) { .bar { padding: 10px; } .group { width: 100%; } }
+
+.subhead { font-size: 14px; margin: 16px 0 8px; }
+.subhead .sub { font-weight: 400; }
+.csa-list { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 8px; }
+.csa-list li { display: grid; gap: 2px; padding: 9px 11px; border: 1px solid var(--line); border-radius: 9px; background: var(--bg2); }
+.csa-list li span { color: var(--mute); font-size: 12.5px; }

@@ -17,6 +17,7 @@ jobs:
       - run: npm run check
       - run: npm test
   deploy:
+    continue-on-error: true   # needs Pages enabled in repo settings (Source: GitHub Actions)
     if: github.ref == 'refs/heads/main'
     needs: test
     runs-on: ubuntu-latest

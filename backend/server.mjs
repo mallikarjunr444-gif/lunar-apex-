@@ -26,8 +26,12 @@ const RESOURCES = [
   { id: "pds", category: "science", name: "NASA Planetary Data System", url: "https://pds.nasa.gov/" },
   { id: "horizons", category: "science", name: "JPL Horizons", url: "https://ssd.jpl.nasa.gov/horizons/" },
   { id: "moon-trek", category: "science", name: "NASA Moon Trek", url: "https://trek.nasa.gov/moon/" },
-  { id: "quickmap", category: "science", name: "LROC QuickMap", url: "https://quickmap.lroc.asu.edu/" },
-  { id: "csa-moon", category: "science", name: "CSA Moon Exploration", url: "https://www.asc-csa.gc.ca/eng/astronomy/moon-exploration/" }
+  { id: "quickmap", category: "science", name: "LROC QuickMap", url: "https://quickmap.lroc.im-ldi.com/?prjExtent=-3335249.7991968%2C-1737400%2C3335249.7991968%2C1737400&earthShadowEnabled=true&proj=10&stack=3314&defs=N4IgzGCMAsIFygPYAcCGBjAlgFwJ70gF9Cg" },
+  { id: "csa-moon", category: "science", name: "CSA Moon Exploration", url: "https://www.asc-csa.gc.ca/eng/astronomy/moon-exploration/" },
+  { id: "csa-canadarm3", category: "science", name: "CSA Canadarm3", url: "https://www.asc-csa.gc.ca/eng/canadarm3/" },
+  { id: "csa-gateway", category: "science", name: "CSA Lunar Gateway", url: "https://www.asc-csa.gc.ca/eng/astronomy/moon-exploration/gateway.asp" },
+  { id: "csa-utility-rover", category: "science", name: "CSA Canadian utility rover", url: "https://www.asc-csa.gc.ca/eng/astronomy/moon-exploration/canadian-utility-rover-on-the-moon.asp" },
+  { id: "csa-artemis", category: "science", name: "CSA Artemis campaign", url: "https://www.asc-csa.gc.ca/eng/astronomy/moon-exploration/artemis-missions.asp" }
 ];
 const EVIDENCE = {
   disclaimer: DATA_USE_DISCLAIMER,

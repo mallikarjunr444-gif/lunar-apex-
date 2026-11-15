@@ -131,9 +131,18 @@ context; this is a comparison aid, not a validation guarantee.
 
 Eclipses of the site by Earth/Sun, antenna pointing limits, thermal limits, site tilt, dust, Earth-disc size in link budgets. Events shorter than ~15 min can be missed by the scan. Curated coordinates marked ≈ are region centres — verify before design use.
 
-## Resources used
+## Resources used and how they connect
 
-[Quickmap](https://quickmap.lroc.asu.edu/) · [Moon Trek](https://trek.nasa.gov/moon/) · [JPL Horizons](https://ssd.jpl.nasa.gov/horizons/) · [CSA Moon Exploration](https://www.asc-csa.gc.ca/eng/astronomy/moon-exploration/). NASA does not endorse any non-U.S. Government entity.
+| Resource | How the app uses it |
+|---|---|
+| [LROC Quickmap](https://quickmap.lroc.im-ldi.com/?prjExtent=-3335249.7991968%2C-1737400%2C3335249.7991968%2C1737400&earthShadowEnabled=true&proj=10&stack=3314&defs=N4IgzGCMAsIFygPYAcCGBjAlgFwJ70gF9Cg) | Each scenario card has **QuickMap here**: the project's Quickmap view (Earth-shadow overlay, layer stack, projection) re-centred on the card's coordinates, kept in sync as you edit lat/lon. Inspect the terrain, then import a horizon as a profile (CSV `azimuth°, elevation°`). Quickmap's `proj=10` is treated as the simple cylindrical map, so polar sites look stretched; switch to its polar projection after it opens. |
+| [NASA Moon Trek](https://trek.nasa.gov/moon/) | **Moon Trek** button on each card plus **Copy coordinates** (no documented coordinate deep link, so paste into its search) for 3D relief context. |
+| [JPL Horizons](https://ssd.jpl.nasa.gov/horizons/) | **Check with JPL Horizons** on each card, live-mode positions, `POST /api/horizons/compare`, and `tools/compare_horizons.js`. |
+| [CSA Moon Exploration](https://www.asc-csa.gc.ca/eng/astronomy/moon-exploration/) | "Canada & the Moon" section linking Canadarm3, the Lunar Gateway, the Canadian utility rover, Artemis, Canada's role, Apollo-to-Artemis and LEAP, with summaries taken from the CSA portal. Also in `GET /api/resources`. |
+
+Quickmap, Moon Trek and CSA could not be reached from the build sandbox, so those links were verified structurally (unit tests on the URL construction) and not by loading the sites; open one to confirm the centring in your browser.
+
+NASA does not endorse any non-U.S. Government entity.
 
 MIT licensed.
 
